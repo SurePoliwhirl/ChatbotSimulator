@@ -55,6 +55,8 @@ export function ChatbotSimulator() {
   const [customModels, setCustomModels] = useState<CustomModel[]>([]);
   const [newModelName, setNewModelName] = useState('');
   const [newModelApiKey, setNewModelApiKey] = useState('');
+  const [isValidatingKey, setIsValidatingKey] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const [defaultModels, setDefaultModels] = useState([
     { id: 'GPT-4', name: 'GPT-4', description: '가장 강력한 언어 모델' },
@@ -74,22 +76,81 @@ export function ChatbotSimulator() {
     })),
   ];
 
-  const handleAddModel = () => {
+  // API 키 검증 함수
+  const validateApiKey = async (apiKey: string, modelType: string = 'openai'): Promise<{ valid: boolean; error?: string }> => {
+    try {
+      const response = await fetch('http://localhost:5000/api/validate-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_key: apiKey,
+          model_type: modelType,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.valid) {
+        return { valid: true };
+      } else {
+        return { valid: false, error: data.error || 'API 키 검증에 실패했습니다.' };
+      }
+    } catch (error) {
+      return { 
+        valid: false, 
+        error: error instanceof Error ? error.message : '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.' 
+      };
+    }
+  };
+
+  const handleAddModel = async () => {
     if (!newModelName.trim() || !newModelApiKey.trim()) {
+      setValidationError('모델 이름과 API 키를 모두 입력해주세요.');
       return;
     }
 
-    const newModel: CustomModel = {
-      id: `custom-${Date.now()}`,
-      name: newModelName.trim(),
-      apiKey: newModelApiKey.trim(),
-      description: '사용자 정의 모델',
-    };
+    // 에러 메시지 초기화
+    setValidationError(null);
+    setIsValidatingKey(true);
 
-    setCustomModels([...customModels, newModel]);
-    setNewModelName('');
-    setNewModelApiKey('');
-    setAddModelDialogOpen(false);
+    try {
+      // API 키 형식에 따라 모델 타입 추정
+      let modelType = 'openai';
+      if (newModelApiKey.includes('anthropic') || newModelApiKey.startsWith('sk-ant-')) {
+        modelType = 'anthropic';
+      } else if (newModelApiKey.includes('google') || newModelApiKey.length > 50) {
+        modelType = 'google';
+      }
+
+      // API 키 검증
+      const validationResult = await validateApiKey(newModelApiKey.trim(), modelType);
+
+      if (!validationResult.valid) {
+        setValidationError(validationResult.error || 'API 키 검증에 실패했습니다.');
+        setIsValidatingKey(false);
+        return;
+      }
+
+      // 검증 성공 시 모델 추가
+      const newModel: CustomModel = {
+        id: `custom-${Date.now()}`,
+        name: newModelName.trim(),
+        apiKey: newModelApiKey.trim(),
+        description: '사용자 정의 모델',
+      };
+
+      setCustomModels([...customModels, newModel]);
+      setNewModelName('');
+      setNewModelApiKey('');
+      setValidationError(null);
+      setAddModelDialogOpen(false);
+    } catch (error) {
+      setValidationError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setIsValidatingKey(false);
+    }
   };
 
   const handleDeleteModel = (modelId: string) => {
@@ -626,13 +687,15 @@ export function ChatbotSimulator() {
         if (!open) {
           setNewModelName('');
           setNewModelApiKey('');
+          setValidationError(null);
+          setIsValidatingKey(false);
         }
       }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>사용자 정의 모델 추가</DialogTitle>
             <DialogDescription>
-              새로운 AI 모델의 이름과 API 키를 입력하세요.
+              새로운 AI 모델의 이름과 API 키를 입력하세요. API 키는 추가 전에 유효성을 검증합니다.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -641,9 +704,13 @@ export function ChatbotSimulator() {
               <Input
                 id="newModelName"
                 value={newModelName}
-                onChange={(e) => setNewModelName(e.target.value)}
+                onChange={(e) => {
+                  setNewModelName(e.target.value);
+                  setValidationError(null);
+                }}
                 placeholder="예: My Custom GPT, Claude API"
                 className="w-full"
+                disabled={isValidatingKey}
               />
             </div>
             <div className="space-y-2">
@@ -652,11 +719,28 @@ export function ChatbotSimulator() {
                 id="newModelApiKey"
                 type="password"
                 value={newModelApiKey}
-                onChange={(e) => setNewModelApiKey(e.target.value)}
+                onChange={(e) => {
+                  setNewModelApiKey(e.target.value);
+                  setValidationError(null);
+                }}
                 placeholder="sk-..."
                 className="w-full"
+                disabled={isValidatingKey}
               />
             </div>
+            {validationError && (
+              <div className="p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-red-600">{validationError}</p>
+              </div>
+            )}
+            {isValidatingKey && (
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-blue-600">API 키를 검증하는 중...</p>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-3">
             <button
@@ -664,17 +748,23 @@ export function ChatbotSimulator() {
                 setAddModelDialogOpen(false);
                 setNewModelName('');
                 setNewModelApiKey('');
+                setValidationError(null);
+                setIsValidatingKey(false);
               }}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isValidatingKey}
             >
               취소
             </button>
             <button
               onClick={handleAddModel}
-              disabled={!newModelName.trim() || !newModelApiKey.trim()}
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              disabled={!newModelName.trim() || !newModelApiKey.trim() || isValidatingKey}
+              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
-              추가
+              {isValidatingKey && (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              )}
+              {isValidatingKey ? '검증 중...' : '추가'}
             </button>
           </div>
         </DialogContent>
