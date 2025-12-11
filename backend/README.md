@@ -4,6 +4,38 @@
 
 ## 설치 방법
 
+### 방법 1: uv 사용 (권장 - 빠른 설치)
+
+1. [uv 설치](https://github.com/astral-sh/uv) (아직 설치하지 않은 경우):
+```bash
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Mac/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2. 의존성 설치 및 가상 환경 생성 (uv가 자동으로 처리):
+```bash
+uv pip install -r requirements.txt
+```
+
+또는 uv sync 사용 (pyproject.toml이 있는 경우):
+```bash
+uv sync
+```
+
+3. 가상 환경 활성화:
+```bash
+# Windows
+.venv\Scripts\activate
+
+# Mac/Linux
+source .venv/bin/activate
+```
+
+### 방법 2: pip 사용 (기존 방법)
+
 1. Python 3.8 이상이 설치되어 있어야 합니다.
 
 2. 가상 환경 생성 및 활성화 (선택사항):
