@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Bot, Play, Trash2, Settings, Download } from 'lucide-react';
+import { Bot, Play, Trash2, Settings, Download, Plus, X } from 'lucide-react';
 import botLogo from '../assets/bot_logo.png';
 import { ConversationSet } from './ConversationSet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 interface Message {
   id: string;
@@ -16,10 +19,19 @@ interface ConversationSetData {
   isComplete: boolean;
 }
 
+interface CustomModel {
+  id: string;
+  name: string;
+  apiKey: string;
+  description: string;
+}
+
 interface SimulationConfig {
   topic: string;
   persona1: string;
   persona2: string;
+  llmModel1: string;
+  llmModel2: string;
   turnsPerBot: number;
   numberOfSets: number;
   exportFormat: 'text' | 'json' | 'excel';
@@ -30,12 +42,96 @@ export function ChatbotSimulator() {
     topic: '',
     persona1: '',
     persona2: '',
+    llmModel1: 'GPT-4',
+    llmModel2: 'GPT-4',
     turnsPerBot: 3,
     numberOfSets: 2,
     exportFormat: 'text',
   });
   const [conversationSets, setConversationSets] = useState<ConversationSetData[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [modelDialogOpen, setModelDialogOpen] = useState<1 | 2 | null>(null);
+  const [addModelDialogOpen, setAddModelDialogOpen] = useState(false);
+  const [customModels, setCustomModels] = useState<CustomModel[]>([]);
+  const [newModelName, setNewModelName] = useState('');
+  const [newModelApiKey, setNewModelApiKey] = useState('');
+
+  const [defaultModels, setDefaultModels] = useState([
+    { id: 'GPT-4', name: 'GPT-4', description: '가장 강력한 언어 모델' },
+    { id: 'GPT-3.5', name: 'GPT-3.5 Turbo', description: '빠르고 효율적인 모델' },
+    { id: 'Claude-3', name: 'Claude 3', description: 'Anthropic의 최신 모델' },
+    { id: 'Gemini', name: 'Gemini Pro', description: 'Google의 멀티모달 AI' },
+    { id: 'Llama-2', name: 'Llama 2', description: '오픈소스 대형 언어 모델' },
+    { id: 'Mistral', name: 'Mistral 7B', description: '효율적인 오픈소스 모델' },
+  ]);
+
+  const availableModels = [
+    ...defaultModels,
+    ...customModels.map(m => ({
+      id: m.id,
+      name: m.name,
+      description: m.description,
+    })),
+  ];
+
+  const handleAddModel = () => {
+    if (!newModelName.trim() || !newModelApiKey.trim()) {
+      return;
+    }
+
+    const newModel: CustomModel = {
+      id: `custom-${Date.now()}`,
+      name: newModelName.trim(),
+      apiKey: newModelApiKey.trim(),
+      description: '사용자 정의 모델',
+    };
+
+    setCustomModels([...customModels, newModel]);
+    setNewModelName('');
+    setNewModelApiKey('');
+    setAddModelDialogOpen(false);
+  };
+
+  const handleDeleteModel = (modelId: string) => {
+    // 최소 1개의 모델은 남아있어야 함
+    if (availableModels.length <= 1) {
+      return;
+    }
+
+    // 기본 모델 삭제
+    const isDefaultModel = defaultModels.some(m => m.id === modelId);
+    if (isDefaultModel) {
+      setDefaultModels(defaultModels.filter(m => m.id !== modelId));
+    } else {
+      // 커스텀 모델 삭제
+      setCustomModels(customModels.filter(m => m.id !== modelId));
+    }
+    
+    // 삭제된 모델이 현재 선택된 모델이면 다른 모델로 변경
+    const remainingModels = availableModels.filter(m => m.id !== modelId);
+    const fallbackModelId = remainingModels.length > 0 ? remainingModels[0].id : 'GPT-4';
+    
+    if (config.llmModel1 === modelId) {
+      setConfig({ ...config, llmModel1: fallbackModelId });
+    }
+    if (config.llmModel2 === modelId) {
+      setConfig({ ...config, llmModel2: fallbackModelId });
+    }
+  };
+
+  const getModelName = (modelId: string): string => {
+    const model = availableModels.find(m => m.id === modelId);
+    return model ? model.name : modelId;
+  };
+
+  const handleModelSelect = (modelId: string) => {
+    if (modelDialogOpen === 1) {
+      setConfig({ ...config, llmModel1: modelId });
+    } else if (modelDialogOpen === 2) {
+      setConfig({ ...config, llmModel2: modelId });
+    }
+    setModelDialogOpen(null);
+  };
 
   const generateResponse = (
     botNumber: 1 | 2,
@@ -45,7 +141,7 @@ export function ChatbotSimulator() {
     previousMessages: Message[]
   ): string => {
     const persona = botNumber === 1 ? persona1 : persona2;
-
+    
     const bot1Starters = [
       `${topic}에 대해 생각해봤는데요,`,
       `${topic}에 관해서는 ${persona1}로서 제 생각은`,
@@ -82,7 +178,7 @@ export function ChatbotSimulator() {
 
     const starters = botNumber === 1 ? bot1Starters : bot2Starters;
     const starter = starters[Math.floor(Math.random() * starters.length)];
-
+    
     let response = starter;
 
     if (previousMessages.length > 2 && Math.random() > 0.5) {
@@ -102,7 +198,7 @@ export function ChatbotSimulator() {
     }
 
     setIsSimulating(true);
-
+    
     // 세트 초기화
     const initialSets: ConversationSetData[] = Array.from({ length: config.numberOfSets }, (_, i) => ({
       id: `set-${Date.now()}-${i}`,
@@ -113,23 +209,23 @@ export function ChatbotSimulator() {
 
     // 각 세트에 대해 비동기로 메시지 생성
     const totalMessagesPerSet = config.turnsPerBot * 2;
-
+    
     for (let messageIndex = 0; messageIndex < totalMessagesPerSet; messageIndex++) {
       await new Promise((resolve) => setTimeout(resolve, 800));
-
+      
       setConversationSets((prevSets) => {
         return prevSets.map((set) => {
           if (set.messages.length < totalMessagesPerSet) {
             const botNumber = ((set.messages.length % 2) + 1) as 1 | 2;
             const text = generateResponse(botNumber, config.topic, config.persona1, config.persona2, set.messages);
-
+            
             const newMessage: Message = {
               id: `${set.id}-msg-${set.messages.length}`,
               bot: botNumber,
               text,
               timestamp: new Date(),
             };
-
+            
             return {
               ...set,
               messages: [...set.messages, newMessage],
@@ -227,7 +323,7 @@ export function ChatbotSimulator() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-
+  
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <header className="text-center mb-8">
@@ -264,9 +360,19 @@ export function ChatbotSimulator() {
             </div>
 
             <div>
-              <label htmlFor="persona1" className="block text-gray-700 mb-2">
-                챗봇 1 페르소나
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="persona1" className="text-gray-700">
+                  챗봇 1 페르소나
+                </label>
+                <button
+                  onClick={() => setModelDialogOpen(1)}
+                  disabled={isSimulating}
+                  className="p-1.5 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="모델 설정"
+                >
+                  <Settings className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
               <input
                 id="persona1"
                 type="text"
@@ -276,12 +382,25 @@ export function ChatbotSimulator() {
                 disabled={isSimulating}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
+              <p className="text-gray-500 text-xs mt-1">
+                모델: {getModelName(config.llmModel1)}
+              </p>
             </div>
 
             <div>
-              <label htmlFor="persona2" className="block text-gray-700 mb-2">
-                챗봇 2 페르소나
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="persona2" className="text-gray-700">
+                  챗봇 2 페르소나
+                </label>
+                <button
+                  onClick={() => setModelDialogOpen(2)}
+                  disabled={isSimulating}
+                  className="p-1.5 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="모델 설정"
+                >
+                  <Settings className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
               <input
                 id="persona2"
                 type="text"
@@ -291,6 +410,9 @@ export function ChatbotSimulator() {
                 disabled={isSimulating}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
+              <p className="text-gray-500 text-xs mt-1">
+                모델: {getModelName(config.llmModel2)}
+              </p>
             </div>
 
             <div>
@@ -400,11 +522,12 @@ export function ChatbotSimulator() {
               </div>
             </div>
           ) : (
-            <div className={`grid gap-4 ${config.numberOfSets === 1 ? 'grid-cols-1' :
+            <div className={`grid gap-4 ${
+              config.numberOfSets === 1 ? 'grid-cols-1' : 
               config.numberOfSets === 2 ? 'grid-cols-1 lg:grid-cols-2' :
-                config.numberOfSets <= 4 ? 'grid-cols-1 lg:grid-cols-2' :
-                  'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
-              }`}>
+              config.numberOfSets <= 4 ? 'grid-cols-1 lg:grid-cols-2' :
+              'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
+            }`}>
               {conversationSets.map((set, index) => (
                 <ConversationSet
                   key={set.id}
@@ -421,6 +544,141 @@ export function ChatbotSimulator() {
           )}
         </div>
       </div>
+
+      <Dialog open={modelDialogOpen !== null} onOpenChange={() => setModelDialogOpen(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>LLM 모델 선택</DialogTitle>
+            <DialogDescription>
+              챗봇 {modelDialogOpen}에서 사용할 AI 모델을 선택하세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 max-h-[400px] overflow-y-auto">
+            {availableModels.map((model) => {
+              const isSelected = modelDialogOpen === 1 
+                ? config.llmModel1 === model.id 
+                : config.llmModel2 === model.id;
+              const canDelete = availableModels.length > 1;
+              
+              return (
+                <div
+                  key={model.id}
+                  className={`w-full px-4 py-3 border-2 rounded-lg transition-all flex items-center justify-between ${
+                    isSelected 
+                      ? 'border-purple-500 bg-purple-50' 
+                      : 'border-gray-200'
+                  }`}
+                >
+                  <button
+                    onClick={() => handleModelSelect(model.id)}
+                    className="flex-1 text-left"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className={`${isSelected ? 'text-purple-700' : 'text-gray-900'}`}>
+                          {model.name}
+                        </div>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {model.description}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteModel(model.id);
+                    }}
+                    disabled={!canDelete}
+                    className="ml-2 p-1.5 rounded-md hover:bg-red-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                    title={canDelete ? "모델 삭제" : "최소 1개의 모델이 필요합니다"}
+                  >
+                    <X className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 pt-4 border-t">
+            <button
+              onClick={() => {
+                setAddModelDialogOpen(true);
+                setModelDialogOpen(null);
+              }}
+              className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all flex items-center justify-center gap-2 text-gray-700 hover:text-purple-700"
+            >
+              <Plus className="w-5 h-5" />
+              <span>새 모델 추가</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addModelDialogOpen} onOpenChange={(open) => {
+        setAddModelDialogOpen(open);
+        if (!open) {
+          setNewModelName('');
+          setNewModelApiKey('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>사용자 정의 모델 추가</DialogTitle>
+            <DialogDescription>
+              새로운 AI 모델의 이름과 API 키를 입력하세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newModelName">모델 이름 (별칭)</Label>
+              <Input
+                id="newModelName"
+                value={newModelName}
+                onChange={(e) => setNewModelName(e.target.value)}
+                placeholder="예: My Custom GPT, Claude API"
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newModelApiKey">API 키</Label>
+              <Input
+                id="newModelApiKey"
+                type="password"
+                value={newModelApiKey}
+                onChange={(e) => setNewModelApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setAddModelDialogOpen(false);
+                setNewModelName('');
+                setNewModelApiKey('');
+              }}
+              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleAddModel}
+              disabled={!newModelName.trim() || !newModelApiKey.trim()}
+              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              추가
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

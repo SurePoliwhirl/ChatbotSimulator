@@ -66,8 +66,9 @@ export function ConversationDisplay({
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${message.bot === 1 ? 'justify-start' : 'justify-end'
-              }`}
+            className={`flex gap-3 ${
+              message.bot === 1 ? 'justify-start' : 'justify-end'
+            }`}
           >
             {message.bot === 1 && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
@@ -76,10 +77,11 @@ export function ConversationDisplay({
             )}
 
             <div
-              className={`max-w-[75%] rounded-2xl px-4 py-3 ${message.bot === 1
-                ? 'bg-gray-100 text-gray-900'
-                : 'bg-gradient-to-br from-purple-500 to-purple-600 text-white'
-                }`}
+              className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                message.bot === 1
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'bg-gradient-to-br from-purple-500 to-purple-600 text-white'
+              }`}
             >
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs opacity-75">
