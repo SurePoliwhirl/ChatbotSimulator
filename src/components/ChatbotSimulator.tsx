@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Bot, Play, Trash2, Settings, Download } from 'lucide-react';
+import botLogo from '../assets/bot_logo.png';
 import { ConversationSet } from './ConversationSet';
 
 interface Message {
@@ -44,7 +45,7 @@ export function ChatbotSimulator() {
     previousMessages: Message[]
   ): string => {
     const persona = botNumber === 1 ? persona1 : persona2;
-    
+
     const bot1Starters = [
       `${topic}에 대해 생각해봤는데요,`,
       `${topic}에 관해서는 ${persona1}로서 제 생각은`,
@@ -81,7 +82,7 @@ export function ChatbotSimulator() {
 
     const starters = botNumber === 1 ? bot1Starters : bot2Starters;
     const starter = starters[Math.floor(Math.random() * starters.length)];
-    
+
     let response = starter;
 
     if (previousMessages.length > 2 && Math.random() > 0.5) {
@@ -101,7 +102,7 @@ export function ChatbotSimulator() {
     }
 
     setIsSimulating(true);
-    
+
     // 세트 초기화
     const initialSets: ConversationSetData[] = Array.from({ length: config.numberOfSets }, (_, i) => ({
       id: `set-${Date.now()}-${i}`,
@@ -112,23 +113,23 @@ export function ChatbotSimulator() {
 
     // 각 세트에 대해 비동기로 메시지 생성
     const totalMessagesPerSet = config.turnsPerBot * 2;
-    
+
     for (let messageIndex = 0; messageIndex < totalMessagesPerSet; messageIndex++) {
       await new Promise((resolve) => setTimeout(resolve, 800));
-      
+
       setConversationSets((prevSets) => {
         return prevSets.map((set) => {
           if (set.messages.length < totalMessagesPerSet) {
             const botNumber = ((set.messages.length % 2) + 1) as 1 | 2;
             const text = generateResponse(botNumber, config.topic, config.persona1, config.persona2, set.messages);
-            
+
             const newMessage: Message = {
               id: `${set.id}-msg-${set.messages.length}`,
               bot: botNumber,
               text,
               timestamp: new Date(),
             };
-            
+
             return {
               ...set,
               messages: [...set.messages, newMessage],
@@ -226,12 +227,12 @@ export function ChatbotSimulator() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <header className="text-center mb-8">
         <div className="flex items-center justify-center gap-3 mb-3">
-          <Bot className="w-10 h-10 text-purple-600" />
+          <img src={botLogo} alt="Chatbot Logo" className="w-10 h-10" />
           <h1 className="text-purple-900">챗봇 시뮬레이터</h1>
         </div>
         <p className="text-gray-600">
@@ -391,7 +392,7 @@ export function ChatbotSimulator() {
           {conversationSets.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-lg p-12 h-full flex items-center justify-center">
               <div className="text-center max-w-md">
-                <Bot className="w-16 h-16 text-purple-300 mx-auto mb-4" />
+                <img src={botLogo} alt="Start" className="w-16 h-16 mx-auto mb-4" />
                 <h3 className="text-gray-900 mb-2">시작 준비 완료</h3>
                 <p className="text-gray-500">
                   설정을 완료하고 "시뮬레이션 시작"을 클릭하여 여러 챗봇 대화를 동시에 관찰하세요
@@ -399,12 +400,11 @@ export function ChatbotSimulator() {
               </div>
             </div>
           ) : (
-            <div className={`grid gap-4 ${
-              config.numberOfSets === 1 ? 'grid-cols-1' : 
+            <div className={`grid gap-4 ${config.numberOfSets === 1 ? 'grid-cols-1' :
               config.numberOfSets === 2 ? 'grid-cols-1 lg:grid-cols-2' :
-              config.numberOfSets <= 4 ? 'grid-cols-1 lg:grid-cols-2' :
-              'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
-            }`}>
+                config.numberOfSets <= 4 ? 'grid-cols-1 lg:grid-cols-2' :
+                  'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
+              }`}>
               {conversationSets.map((set, index) => (
                 <ConversationSet
                   key={set.id}

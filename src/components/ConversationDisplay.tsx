@@ -1,4 +1,5 @@
 import { Bot, Sparkles } from 'lucide-react';
+import botLogo from '../assets/bot_logo.png';
 import { useEffect, useRef } from 'react';
 
 interface Message {
@@ -45,7 +46,7 @@ export function ConversationDisplay({
     <div className="bg-white rounded-2xl shadow-lg p-6 h-[600px] flex flex-col">
       <div className="mb-4 pb-4 border-b border-gray-200">
         <div className="flex items-center gap-2 mb-2">
-          <Bot className="w-5 h-5 text-purple-600" />
+          <img src={botLogo} alt="Chatbot" className="w-5 h-5" />
           <h2 className="text-gray-900">실시간 대화</h2>
         </div>
         {topic && (
@@ -65,22 +66,20 @@ export function ConversationDisplay({
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${
-              message.bot === 1 ? 'justify-start' : 'justify-end'
-            }`}
+            className={`flex gap-3 ${message.bot === 1 ? 'justify-start' : 'justify-end'
+              }`}
           >
             {message.bot === 1 && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
+                <img src={botLogo} alt="Bot 1" className="w-4 h-4" />
               </div>
             )}
 
             <div
-              className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-                message.bot === 1
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'bg-gradient-to-br from-purple-500 to-purple-600 text-white'
-              }`}
+              className={`max-w-[75%] rounded-2xl px-4 py-3 ${message.bot === 1
+                ? 'bg-gray-100 text-gray-900'
+                : 'bg-gradient-to-br from-purple-500 to-purple-600 text-white'
+                }`}
             >
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs opacity-75">
@@ -92,7 +91,7 @@ export function ConversationDisplay({
 
             {message.bot === 2 && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
+                <img src={botLogo} alt="Bot 2" className="w-4 h-4" />
               </div>
             )}
           </div>
@@ -101,7 +100,7 @@ export function ConversationDisplay({
         {isSimulating && (
           <div className="flex gap-3 justify-start">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-white" />
+              <img src={botLogo} alt="Typing..." className="w-4 h-4" />
             </div>
             <div className="bg-gray-100 rounded-2xl px-4 py-3">
               <div className="flex gap-1">
