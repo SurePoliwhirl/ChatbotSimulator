@@ -5,14 +5,8 @@ backend/__pycache__
 *.pyo
 *.pyd
 .Python
+
 uv.lock
 **/uv.lock
 
-# Frontend builds
-dist/
-build/
-*.log
-.env
-.DS_Store
-coverage/
-.vscode/
+
