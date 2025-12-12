@@ -62,6 +62,7 @@ export function ChatbotSimulator() {
   const [initialNumberOfSets, setInitialNumberOfSets] = useState<number | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState<1 | 2 | null>(null);
   const [addModelDialogOpen, setAddModelDialogOpen] = useState(false);
+  const [previousModelDialog, setPreviousModelDialog] = useState<1 | 2 | null>(null);
   const [customModels, setCustomModels] = useState<CustomModel[]>([]);
   const [newModelName, setNewModelName] = useState('');
   const [newModelApiKey, setNewModelApiKey] = useState('');
@@ -159,10 +160,17 @@ export function ChatbotSimulator() {
       };
 
       setCustomModels([...customModels, newModel]);
+      // 입력 필드 초기화
       setNewModelName('');
       setNewModelApiKey('');
       setValidationError(null);
+      
+      // 모델 추가 모달 닫고, 이전에 열려있던 모델 선택 모달로 돌아가기
       setAddModelDialogOpen(false);
+      if (previousModelDialog) {
+        setModelDialogOpen(previousModelDialog);
+        setPreviousModelDialog(null);
+      }
     } catch (error) {
       setValidationError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
@@ -1051,6 +1059,8 @@ export function ChatbotSimulator() {
           <div className="mt-4 pt-4 border-t">
             <button
               onClick={() => {
+                // 현재 열려있는 모델 선택 모달의 챗봇 번호 저장
+                setPreviousModelDialog(modelDialogOpen);
                 setAddModelDialogOpen(true);
                 setModelDialogOpen(null);
               }}
@@ -1070,6 +1080,11 @@ export function ChatbotSimulator() {
           setNewModelApiKey('');
           setValidationError(null);
           setIsValidatingKey(false);
+          // 모달이 닫힐 때 이전 모델 선택 모달로 돌아가기 (취소 버튼 등으로 닫힌 경우)
+          if (previousModelDialog) {
+            setModelDialogOpen(previousModelDialog);
+            setPreviousModelDialog(null);
+          }
         }
       }}>
         <DialogContent className="sm:max-w-[500px]">
