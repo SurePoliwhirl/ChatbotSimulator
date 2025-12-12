@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bot, Play, Trash2, Settings, Download, Plus, X } from 'lucide-react';
 import botLogo from '../assets/bot_logo.png';
 import { ConversationSet } from './ConversationSet';
@@ -11,6 +11,11 @@ interface Message {
   bot: 1 | 2;
   text: string;
   timestamp: Date;
+  tokens?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 }
 
 interface ConversationSetData {
@@ -61,6 +66,13 @@ export function ChatbotSimulator() {
   const [newModelApiKey, setNewModelApiKey] = useState('');
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [tokenEstimate, setTokenEstimate] = useState<{
+    total_tokens: number;
+    total_prompt_tokens: number;
+    total_completion_tokens: number;
+    per_set_tokens: number;
+  } | null>(null);
+  const [isEstimatingTokens, setIsEstimatingTokens] = useState(false);
 
   const [defaultModels, setDefaultModels] = useState([
     { id: 'GPT-4', name: 'GPT-4', description: '가장 강력한 언어 모델' },
@@ -336,7 +348,11 @@ export function ChatbotSimulator() {
       const data = await response.json();
       
       if (data.success) {
-        return data.text;
+        // 토큰 정보를 반환하기 위해 객체로 반환
+        return JSON.stringify({
+          text: data.text,
+          tokens: data.tokens
+        });
       } else {
         return `[오류: ${data.error || '응답 생성에 실패했습니다.'}]`;
       }
@@ -344,6 +360,63 @@ export function ChatbotSimulator() {
       return `[오류: ${error instanceof Error ? error.message : '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.'}]`;
     }
   };
+
+  // 토큰 예측 함수
+  const estimateTokens = useCallback(async () => {
+    if (!config.topic || !config.persona1 || !config.persona2) {
+      setTokenEstimate(null);
+      return;
+    }
+
+    setIsEstimatingTokens(true);
+    try {
+      const modelId1 = config.llmModel1;
+      const modelId2 = config.llmModel2;
+      const apiKey1 = getApiKeyForModel(modelId1);
+      const apiKey2 = getApiKeyForModel(modelId2);
+      
+      const modelType1 = getModelType(modelId1, apiKey1);
+      const modelType2 = getModelType(modelId2, apiKey2);
+
+      const response = await fetch('http://localhost:5000/api/estimate-tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model_type1: modelType1,
+          model_type2: modelType2,
+          topic: config.topic,
+          persona1: config.persona1,
+          persona2: config.persona2,
+          turns_per_bot: config.turnsPerBot,
+          number_of_sets: config.numberOfSets,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setTokenEstimate(data.estimate);
+      } else {
+        setTokenEstimate(null);
+      }
+    } catch (error) {
+      console.error('토큰 예측 실패:', error);
+      setTokenEstimate(null);
+    } finally {
+      setIsEstimatingTokens(false);
+    }
+  }, [config.topic, config.persona1, config.persona2, config.llmModel1, config.llmModel2, config.turnsPerBot, config.numberOfSets]);
+
+  // 설정이 변경될 때마다 토큰 예측 업데이트
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      estimateTokens();
+    }, 500); // 500ms 디바운스
+
+    return () => clearTimeout(timeoutId);
+  }, [estimateTokens]);
 
   const startSimulation = async () => {
     if (!config.topic || !config.persona1 || !config.persona2 || config.turnsPerBot < 1 || config.numberOfSets < 1) {
@@ -373,7 +446,7 @@ export function ChatbotSimulator() {
         
         try {
           // LLM API 호출 (현재까지의 로컬 메시지 사용)
-          const text = await generateResponse(
+          const response = await generateResponse(
             botNumber,
             config.topic,
             config.persona1,
@@ -381,11 +454,28 @@ export function ChatbotSimulator() {
             localMessages
           );
           
+          // 응답 파싱 (JSON 문자열 또는 일반 텍스트)
+          let text: string;
+          let tokens: Message['tokens'] | undefined;
+          
+          try {
+            const parsed = JSON.parse(response);
+            if (parsed.text) {
+              text = parsed.text;
+              tokens = parsed.tokens;
+            } else {
+              text = response; // JSON이 아니면 그대로 사용
+            }
+          } catch {
+            text = response; // 파싱 실패 시 그대로 사용
+          }
+          
           const newMessage: Message = {
             id: `${set.id}-msg-${localMessages.length}`,
             bot: botNumber,
             text,
             timestamp: new Date(),
+            tokens,
           };
           
           // 로컬 메시지 업데이트
@@ -456,6 +546,26 @@ export function ChatbotSimulator() {
     }
   };
 
+  // 토큰 통계 계산 헬퍼 함수
+  const calculateTokenStats = (messages: Message[], estimatedTokensPerSet?: number) => {
+    const actualTokens = messages.reduce((acc, msg) => {
+      if (msg.tokens) {
+        acc.total += msg.tokens.total_tokens || 0;
+        acc.prompt += msg.tokens.prompt_tokens || 0;
+        acc.completion += msg.tokens.completion_tokens || 0;
+      }
+      return acc;
+    }, { total: 0, prompt: 0, completion: 0 });
+
+    const averageTokens = messages.length > 0 ? Math.round(actualTokens.total / messages.length) : 0;
+    
+    const errorPercentage = estimatedTokensPerSet && estimatedTokensPerSet > 0
+      ? ((actualTokens.total - estimatedTokensPerSet) / estimatedTokensPerSet) * 100
+      : null;
+
+    return { actualTokens, averageTokens, errorPercentage };
+  };
+
   const exportAsText = () => {
     let content = `챗봇 대화 기록\n`;
     content += `주제: ${config.topic}\n`;
@@ -469,6 +579,19 @@ export function ChatbotSimulator() {
       set.messages.forEach((msg) => {
         content += `챗봇 ${msg.bot}: ${msg.text}\n\n`;
       });
+      
+      // 토큰 통계 추가
+      const stats = calculateTokenStats(set.messages, tokenEstimate?.per_set_tokens);
+      if (stats.actualTokens.total > 0) {
+        content += `\n[토큰 통계]\n`;
+        content += `총 사용 토큰 수: ${stats.actualTokens.total.toLocaleString()}\n`;
+        content += `평균: ${stats.averageTokens.toLocaleString()}\n`;
+        if (stats.errorPercentage !== null) {
+          content += `오차: ${stats.errorPercentage >= 0 ? '+' : ''}${stats.errorPercentage.toFixed(1)}%\n`;
+        }
+        content += `\n`;
+      }
+      
       content += `${'-'.repeat(60)}\n\n`;
     });
 
@@ -485,14 +608,29 @@ export function ChatbotSimulator() {
         numberOfSets: config.numberOfSets,
       },
       exportDate: new Date().toISOString(),
-      conversationSets: conversationSets.map((set, index) => ({
-        setNumber: index + 1,
-        messages: set.messages.map((msg) => ({
-          bot: msg.bot,
-          text: msg.text,
-          timestamp: msg.timestamp.toISOString(),
-        })),
-      })),
+      estimatedTokens: tokenEstimate ? {
+        total_tokens: tokenEstimate.total_tokens,
+        per_set_tokens: tokenEstimate.per_set_tokens,
+      } : null,
+      conversationSets: conversationSets.map((set, index) => {
+        const stats = calculateTokenStats(set.messages, tokenEstimate?.per_set_tokens);
+        return {
+          setNumber: index + 1,
+          messages: set.messages.map((msg) => ({
+            bot: msg.bot,
+            text: msg.text,
+            timestamp: msg.timestamp.toISOString(),
+            tokens: msg.tokens,
+          })),
+          tokenStats: stats.actualTokens.total > 0 ? {
+            total_tokens: stats.actualTokens.total,
+            prompt_tokens: stats.actualTokens.prompt,
+            completion_tokens: stats.actualTokens.completion,
+            average_tokens: stats.averageTokens,
+            error_percentage: stats.errorPercentage,
+          } : null,
+        };
+      }),
     };
 
     downloadFile(JSON.stringify(data, null, 2), 'chatbot-conversation.json', 'application/json');
@@ -500,13 +638,22 @@ export function ChatbotSimulator() {
 
   const exportAsExcel = () => {
     let csv = '\uFEFF'; // UTF-8 BOM for Excel
-    csv += '세트,챗봇,메시지,시간\n';
+    csv += '세트,챗봇,메시지,시간,입력토큰,출력토큰,총토큰\n';
 
     conversationSets.forEach((set, setIndex) => {
       set.messages.forEach((msg) => {
         const time = msg.timestamp.toLocaleTimeString('ko-KR');
-        csv += `${setIndex + 1},챗봇 ${msg.bot},"${msg.text.replace(/"/g, '""')}",${time}\n`;
+        const promptTokens = msg.tokens?.prompt_tokens || '';
+        const completionTokens = msg.tokens?.completion_tokens || '';
+        const totalTokens = msg.tokens?.total_tokens || '';
+        csv += `${setIndex + 1},챗봇 ${msg.bot},"${msg.text.replace(/"/g, '""')}",${time},${promptTokens},${completionTokens},${totalTokens}\n`;
       });
+      
+      // 토큰 통계 행 추가
+      const stats = calculateTokenStats(set.messages, tokenEstimate?.per_set_tokens);
+      if (stats.actualTokens.total > 0) {
+        csv += `${setIndex + 1},[토큰 통계],총 사용 토큰 수: ${stats.actualTokens.total.toLocaleString()},평균: ${stats.averageTokens.toLocaleString()},,${stats.errorPercentage !== null ? `오차: ${stats.errorPercentage >= 0 ? '+' : ''}${stats.errorPercentage.toFixed(1)}%` : ''}\n`;
+      }
     });
 
     downloadFile(csv, 'chatbot-conversation.csv', 'text/csv');
@@ -725,6 +872,35 @@ export function ChatbotSimulator() {
               </select>
             </div>
 
+            {/* 토큰 예측 표시 */}
+            {tokenEstimate && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">예상 토큰 사용량</h3>
+                {isEstimatingTokens ? (
+                  <p className="text-xs text-blue-700">계산 중...</p>
+                ) : (
+                  <div className="space-y-1 text-xs text-blue-800">
+                    <div className="flex justify-between">
+                      <span>총 토큰:</span>
+                      <span className="font-semibold">{tokenEstimate.total_tokens.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-blue-700">
+                      <span>입력 토큰:</span>
+                      <span>{tokenEstimate.total_prompt_tokens.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-blue-700">
+                      <span>출력 토큰:</span>
+                      <span>{tokenEstimate.total_completion_tokens.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-blue-700">
+                      <span>세트당 평균:</span>
+                      <span>{tokenEstimate.per_set_tokens.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col gap-2 pt-4">
               <button
                 onClick={startSimulation}
@@ -788,6 +964,7 @@ export function ChatbotSimulator() {
                   topic={config.topic}
                   persona1={config.persona1}
                   persona2={config.persona2}
+                  estimatedTokensPerSet={tokenEstimate?.per_set_tokens}
                 />
               ))}
             </div>

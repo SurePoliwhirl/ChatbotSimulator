@@ -41,6 +41,10 @@ class LLMResponse:
     success: bool
     text: Optional[str] = None
     error: Optional[str] = None
+    # 토큰 사용량 정보
+    prompt_tokens: Optional[int] = None  # 입력(프롬프트) 토큰 수
+    completion_tokens: Optional[int] = None  # 출력(생성) 토큰 수
+    total_tokens: Optional[int] = None  # 총 토큰 수
     
     def __post_init__(self):
         """유효성 검사"""
