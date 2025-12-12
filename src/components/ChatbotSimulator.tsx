@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bot, Play, Trash2, Settings, Download, Plus, X } from 'lucide-react';
+import { Bot, Play, Trash2, Settings, Download, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import botLogo from '../assets/bot_logo.png';
 import { ConversationSet } from './ConversationSet';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -40,8 +40,10 @@ interface SimulationConfig {
   turnsPerBot: number;
   numberOfSets: number;
   exportFormat: 'text' | 'json' | 'excel';
-  temperature: number;
-  topP: number;
+  temperature1: number;
+  temperature2: number;
+  topP1: number;
+  topP2: number;
 }
 
 export function ChatbotSimulator() {
@@ -54,13 +56,17 @@ export function ChatbotSimulator() {
     turnsPerBot: 3,
     numberOfSets: 2,
     exportFormat: 'text',
-    temperature: 1.2,
-    topP: 0.9,
+    temperature1: 1.2,
+    temperature2: 1.2,
+    topP1: 0.9,
+    topP2: 0.9,
   });
   const [conversationSets, setConversationSets] = useState<ConversationSetData[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [initialNumberOfSets, setInitialNumberOfSets] = useState<number | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState<1 | 2 | null>(null);
+  const [showAdvancedSettings1, setShowAdvancedSettings1] = useState(false);
+  const [showAdvancedSettings2, setShowAdvancedSettings2] = useState(false);
   const [addModelDialogOpen, setAddModelDialogOpen] = useState(false);
   const [previousModelDialog, setPreviousModelDialog] = useState<1 | 2 | null>(null);
   const [customModels, setCustomModels] = useState<CustomModel[]>([]);
@@ -325,6 +331,8 @@ export function ChatbotSimulator() {
     const persona = botNumber === 1 ? persona1 : persona2;
     const modelId = botNumber === 1 ? config.llmModel1 : config.llmModel2;
     const apiKey = getApiKeyForModel(modelId);
+    const temperature = botNumber === 1 ? config.temperature1 : config.temperature2;
+    const topP = botNumber === 1 ? config.topP1 : config.topP2;
     
     // API 키가 없으면 템플릿 기반 응답 반환 (시나리오 예시용)
     if (!apiKey) {
@@ -349,8 +357,8 @@ export function ChatbotSimulator() {
             text: msg.text,
           })),
           bot_number: botNumber,
-          temperature: config.temperature,
-          top_p: config.topP,
+          temperature: temperature,
+          top_p: topP,
         }),
       });
 
@@ -582,8 +590,8 @@ export function ChatbotSimulator() {
   const exportAsText = () => {
     let content = `챗봇 대화 기록\n`;
     content += `주제: ${config.topic}\n`;
-    content += `페르소나1: ${config.persona1}\n`;
-    content += `페르소나2: ${config.persona2}\n`;
+    content += `페르소나1: ${config.persona1} (모델: ${getModelName(config.llmModel1)}, Temperature: ${config.temperature1.toFixed(1)}, Top-p: ${config.topP1.toFixed(2)})\n`;
+    content += `페르소나2: ${config.persona2} (모델: ${getModelName(config.llmModel2)}, Temperature: ${config.temperature2.toFixed(1)}, Top-p: ${config.topP2.toFixed(2)})\n`;
     content += `생성일: ${new Date().toLocaleString('ko-KR')}\n\n`;
     content += `${'='.repeat(60)}\n\n`;
 
@@ -617,6 +625,12 @@ export function ChatbotSimulator() {
         topic: config.topic,
         persona1: config.persona1,
         persona2: config.persona2,
+        llmModel1: config.llmModel1,
+        llmModel2: config.llmModel2,
+        temperature1: config.temperature1,
+        temperature2: config.temperature2,
+        topP1: config.topP1,
+        topP2: config.topP2,
         turnsPerBot: config.turnsPerBot,
         numberOfSets: config.numberOfSets,
       },
@@ -656,7 +670,13 @@ export function ChatbotSimulator() {
     csv += '메타데이터,\n';
     csv += `주제,${config.topic}\n`;
     csv += `페르소나1,${config.persona1}\n`;
+    csv += `모델1,${getModelName(config.llmModel1)}\n`;
+    csv += `Temperature1,${config.temperature1.toFixed(1)}\n`;
+    csv += `Top-p1,${config.topP1.toFixed(2)}\n`;
     csv += `페르소나2,${config.persona2}\n`;
+    csv += `모델2,${getModelName(config.llmModel2)}\n`;
+    csv += `Temperature2,${config.temperature2.toFixed(1)}\n`;
+    csv += `Top-p2,${config.topP2.toFixed(2)}\n`;
     csv += `생성일,${new Date().toLocaleString('ko-KR')}\n`;
     csv += ',\n'; // 빈 행
     
@@ -752,9 +772,69 @@ export function ChatbotSimulator() {
                 disabled={isSimulating}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
-              <p className="text-gray-500 text-xs mt-1">
-                모델: {getModelName(config.llmModel1)}
-              </p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-gray-500 text-xs">
+                  모델: {getModelName(config.llmModel1)}
+                </p>
+                <button
+                  onClick={() => setShowAdvancedSettings1(!showAdvancedSettings1)}
+                  disabled={isSimulating}
+                  className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="고급 설정"
+                >
+                  {showAdvancedSettings1 ? (
+                    <ChevronUp className="w-4 h-4 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-600" />
+                  )}
+                </button>
+              </div>
+              {showAdvancedSettings1 && (
+                <div className="mt-3 space-y-4 pl-2 border-l-2 border-blue-200">
+                  <div>
+                    <label htmlFor="temperature1" className="block text-gray-700 mb-2 text-sm">
+                      창의성 (Temperature): {config.temperature1.toFixed(1)}
+                    </label>
+                    <input
+                      id="temperature1"
+                      type="range"
+                      min="0.0"
+                      max="2.0"
+                      step="0.1"
+                      value={config.temperature1}
+                      onChange={(e) => setConfig({ ...config, temperature1: parseFloat(e.target.value) })}
+                      disabled={isSimulating}
+                      className="w-full disabled:cursor-not-allowed"
+                    />
+                    <div className="flex justify-between text-gray-500 text-xs mt-1">
+                      <span>일관적 (0.0)</span>
+                      <span>균형 (1.0)</span>
+                      <span>창의적 (2.0)</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="topP1" className="block text-gray-700 mb-2 text-sm">
+                      다양성 (Top-p): {config.topP1.toFixed(2)}
+                    </label>
+                    <input
+                      id="topP1"
+                      type="range"
+                      min="0.1"
+                      max="1.0"
+                      step="0.05"
+                      value={config.topP1}
+                      onChange={(e) => setConfig({ ...config, topP1: parseFloat(e.target.value) })}
+                      disabled={isSimulating}
+                      className="w-full disabled:cursor-not-allowed"
+                    />
+                    <div className="flex justify-between text-gray-500 text-xs mt-1">
+                      <span>집중적 (0.1)</span>
+                      <span>균형 (0.5)</span>
+                      <span>다양함 (1.0)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -780,9 +860,69 @@ export function ChatbotSimulator() {
                 disabled={isSimulating}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
-              <p className="text-gray-500 text-xs mt-1">
-                모델: {getModelName(config.llmModel2)}
-              </p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-gray-500 text-xs">
+                  모델: {getModelName(config.llmModel2)}
+                </p>
+                <button
+                  onClick={() => setShowAdvancedSettings2(!showAdvancedSettings2)}
+                  disabled={isSimulating}
+                  className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="고급 설정"
+                >
+                  {showAdvancedSettings2 ? (
+                    <ChevronUp className="w-4 h-4 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-600" />
+                  )}
+                </button>
+              </div>
+              {showAdvancedSettings2 && (
+                <div className="mt-3 space-y-4 pl-2 border-l-2 border-purple-200">
+                  <div>
+                    <label htmlFor="temperature2" className="block text-gray-700 mb-2 text-sm">
+                      창의성 (Temperature): {config.temperature2.toFixed(1)}
+                    </label>
+                    <input
+                      id="temperature2"
+                      type="range"
+                      min="0.0"
+                      max="2.0"
+                      step="0.1"
+                      value={config.temperature2}
+                      onChange={(e) => setConfig({ ...config, temperature2: parseFloat(e.target.value) })}
+                      disabled={isSimulating}
+                      className="w-full disabled:cursor-not-allowed"
+                    />
+                    <div className="flex justify-between text-gray-500 text-xs mt-1">
+                      <span>일관적 (0.0)</span>
+                      <span>균형 (1.0)</span>
+                      <span>창의적 (2.0)</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="topP2" className="block text-gray-700 mb-2 text-sm">
+                      다양성 (Top-p): {config.topP2.toFixed(2)}
+                    </label>
+                    <input
+                      id="topP2"
+                      type="range"
+                      min="0.1"
+                      max="1.0"
+                      step="0.05"
+                      value={config.topP2}
+                      onChange={(e) => setConfig({ ...config, topP2: parseFloat(e.target.value) })}
+                      disabled={isSimulating}
+                      className="w-full disabled:cursor-not-allowed"
+                    />
+                    <div className="flex justify-between text-gray-500 text-xs mt-1">
+                      <span>집중적 (0.1)</span>
+                      <span>균형 (0.5)</span>
+                      <span>다양함 (1.0)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -826,56 +966,6 @@ export function ChatbotSimulator() {
                 <span>1세트</span>
                 <span>6세트</span>
               </div>
-            </div>
-
-            <div>
-              <label htmlFor="temperature" className="block text-gray-700 mb-2">
-                창의성 (Temperature): {config.temperature.toFixed(1)}
-              </label>
-              <input
-                id="temperature"
-                type="range"
-                min="0.0"
-                max="2.0"
-                step="0.1"
-                value={config.temperature}
-                onChange={(e) => setConfig({ ...config, temperature: parseFloat(e.target.value) })}
-                disabled={isSimulating}
-                className="w-full disabled:cursor-not-allowed"
-              />
-              <div className="flex justify-between text-gray-500 text-xs mt-1">
-                <span>일관적 (0.0)</span>
-                <span>균형 (1.0)</span>
-                <span>창의적 (2.0)</span>
-              </div>
-              <p className="text-gray-500 text-xs mt-1">
-                값이 높을수록 더 다양하고 창의적인 응답을 생성합니다.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="topP" className="block text-gray-700 mb-2">
-                다양성 (Top-p): {config.topP.toFixed(1)}
-              </label>
-              <input
-                id="topP"
-                type="range"
-                min="0.1"
-                max="1.0"
-                step="0.05"
-                value={config.topP}
-                onChange={(e) => setConfig({ ...config, topP: parseFloat(e.target.value) })}
-                disabled={isSimulating}
-                className="w-full disabled:cursor-not-allowed"
-              />
-              <div className="flex justify-between text-gray-500 text-xs mt-1">
-                <span>집중적 (0.1)</span>
-                <span>균형 (0.5)</span>
-                <span>다양함 (1.0)</span>
-              </div>
-              <p className="text-gray-500 text-xs mt-1">
-                값이 높을수록 더 다양한 토큰을 고려합니다. Temperature와 사용하면 더 나은 샘플링을 제공합니다.
-              </p>
             </div>
 
             <div>

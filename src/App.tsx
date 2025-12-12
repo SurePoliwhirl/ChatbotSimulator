@@ -16,31 +16,31 @@ export default function App() {
 
             </div>
 
-            <div className="flex h-full">
+            <div className="flex h-full items-center gap-3">
               <button
                 onClick={() => setCurrentView('simulator')}
                 className={`
-                    flex items-center gap-2 px-4 h-full border-b-2 text-sm font-medium transition-colors
+                    flex items-center gap-2.5 px-6 py-3 rounded-md text-sm font-medium transition-all duration-200
                     ${currentView === 'simulator'
-                    ? 'border-purple-600 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300'}
+                    ? 'bg-purple-50 border-2 border-purple-600'
+                    : 'bg-white/70 hover:bg-white/90 border border-gray-200/60'}
                   `}
               >
-                <MessageSquare className="w-4 h-4" />
-                Conversation Simulator
+                <MessageSquare className={`w-4 h-4 ${currentView === 'simulator' ? 'text-purple-600' : 'text-gray-600'}`} />
+                <span className={`${currentView === 'simulator' ? 'text-purple-600' : 'text-gray-600'}`}>챗봇 시뮬레이터</span>
               </button>
 
               <button
                 onClick={() => setCurrentView('evaluation')}
                 className={`
-                    flex items-center gap-2 px-4 h-full border-b-2 text-sm font-medium transition-colors
+                    flex items-center gap-2.5 px-6 py-3 rounded-md text-sm font-medium transition-all duration-200
                     ${currentView === 'evaluation'
-                    ? 'border-purple-600 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300'}
+                    ? 'bg-purple-50 border-2 border-purple-600'
+                    : 'bg-white/70 hover:bg-white/90 border border-gray-200/60'}
                   `}
               >
-                <BarChart2 className="w-4 h-4" />
-                Evaluation Dashboard
+                <BarChart2 className={`w-4 h-4 ${currentView === 'evaluation' ? 'text-purple-600' : 'text-gray-600'}`} />
+                <span className={`${currentView === 'evaluation' ? 'text-purple-600' : 'text-gray-600'}`}>평가 대시보드</span>
               </button>
             </div>
           </div>
