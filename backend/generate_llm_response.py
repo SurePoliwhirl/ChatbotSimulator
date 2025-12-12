@@ -138,7 +138,20 @@ def generate_openai_response(config: LLMRequestConfig) -> LLMResponse:
             content = result['choices'][0]['message']['content'].strip()
             # 완전한 문장으로 끝나도록 후처리
             content = ensure_complete_sentence(content)
-            return LLMResponse(success=True, text=content)
+            
+            # 토큰 사용량 추출
+            usage = result.get('usage', {})
+            prompt_tokens = usage.get('prompt_tokens')
+            completion_tokens = usage.get('completion_tokens')
+            total_tokens = usage.get('total_tokens')
+            
+            return LLMResponse(
+                success=True, 
+                text=content,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens
+            )
         else:
             error_msg = response.json().get('error', {}).get('message', '알 수 없는 오류')
             return LLMResponse(success=False, error=f'OpenAI API 오류: {error_msg}')
@@ -220,7 +233,20 @@ def generate_anthropic_response(config: LLMRequestConfig) -> LLMResponse:
             content = result['content'][0]['text'].strip()
             # 완전한 문장으로 끝나도록 후처리
             content = ensure_complete_sentence(content)
-            return LLMResponse(success=True, text=content)
+            
+            # 토큰 사용량 추출 (Anthropic은 input_tokens, output_tokens 사용)
+            usage = result.get('usage', {})
+            prompt_tokens = usage.get('input_tokens')
+            completion_tokens = usage.get('output_tokens')
+            total_tokens = (prompt_tokens or 0) + (completion_tokens or 0) if (prompt_tokens or completion_tokens) else None
+            
+            return LLMResponse(
+                success=True, 
+                text=content,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens
+            )
         else:
             error_msg = response.json().get('error', {}).get('message', '알 수 없는 오류')
             return LLMResponse(success=False, error=f'Anthropic API 오류: {error_msg}')
@@ -286,7 +312,20 @@ def generate_google_response(config: LLMRequestConfig) -> LLMResponse:
             content = result['candidates'][0]['content']['parts'][0]['text'].strip()
             # 완전한 문장으로 끝나도록 후처리
             content = ensure_complete_sentence(content)
-            return LLMResponse(success=True, text=content)
+            
+            # 토큰 사용량 추출 (Google은 usageMetadata 사용)
+            usage_metadata = result.get('usageMetadata', {})
+            prompt_tokens = usage_metadata.get('promptTokenCount')
+            completion_tokens = usage_metadata.get('candidatesTokenCount')
+            total_tokens = usage_metadata.get('totalTokenCount')
+            
+            return LLMResponse(
+                success=True, 
+                text=content,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens
+            )
         else:
             error_msg = response.json().get('error', {}).get('message', '알 수 없는 오류')
             return LLMResponse(success=False, error=f'Google API 오류: {error_msg}')
