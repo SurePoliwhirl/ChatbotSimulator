@@ -59,6 +59,7 @@ export function ChatbotSimulator() {
   });
   const [conversationSets, setConversationSets] = useState<ConversationSetData[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [initialNumberOfSets, setInitialNumberOfSets] = useState<number | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState<1 | 2 | null>(null);
   const [addModelDialogOpen, setAddModelDialogOpen] = useState(false);
   const [customModels, setCustomModels] = useState<CustomModel[]>([]);
@@ -425,6 +426,9 @@ export function ChatbotSimulator() {
 
     setIsSimulating(true);
     
+    // 시뮬레이션 시작 시점의 numberOfSets 저장
+    setInitialNumberOfSets(config.numberOfSets);
+    
     // 세트 초기화
     const initialSets: ConversationSetData[] = Array.from({ length: config.numberOfSets }, (_, i) => ({
       id: `set-${Date.now()}-${i}`,
@@ -532,6 +536,7 @@ export function ChatbotSimulator() {
 
   const clearConversation = () => {
     setConversationSets([]);
+    setInitialNumberOfSets(null);
   };
 
   const exportConversations = () => {
@@ -638,6 +643,16 @@ export function ChatbotSimulator() {
 
   const exportAsExcel = () => {
     let csv = '\uFEFF'; // UTF-8 BOM for Excel
+    
+    // 메타데이터 추가
+    csv += '메타데이터,\n';
+    csv += `주제,${config.topic}\n`;
+    csv += `페르소나1,${config.persona1}\n`;
+    csv += `페르소나2,${config.persona2}\n`;
+    csv += `생성일,${new Date().toLocaleString('ko-KR')}\n`;
+    csv += ',\n'; // 빈 행
+    
+    // 데이터 헤더
     csv += '세트,챗봇,메시지,시간,입력토큰,출력토큰,총토큰\n';
 
     conversationSets.forEach((set, setIndex) => {
@@ -949,9 +964,9 @@ export function ChatbotSimulator() {
             </div>
           ) : (
             <div className={`grid gap-4 ${
-              config.numberOfSets === 1 ? 'grid-cols-1' : 
-              config.numberOfSets === 2 ? 'grid-cols-1 lg:grid-cols-2' :
-              config.numberOfSets <= 4 ? 'grid-cols-1 lg:grid-cols-2' :
+              (initialNumberOfSets ?? config.numberOfSets) === 1 ? 'grid-cols-1' : 
+              (initialNumberOfSets ?? config.numberOfSets) === 2 ? 'grid-cols-1 lg:grid-cols-2' :
+              (initialNumberOfSets ?? config.numberOfSets) <= 4 ? 'grid-cols-1 lg:grid-cols-2' :
               'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
             }`}>
               {conversationSets.map((set, index) => (
