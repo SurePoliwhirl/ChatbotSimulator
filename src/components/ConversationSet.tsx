@@ -28,9 +28,30 @@ export function ConversationSet({
   persona2,
 }: ConversationSetProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // 컨테이너 내에서만 스크롤되도록 수정 (페이지 전체 스크롤 방지)
+    if (messagesEndRef.current && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const element = messagesEndRef.current;
+      
+      // 컨테이너의 스크롤 위치 계산 (컨테이너 내에서만 스크롤)
+      const elementTop = element.offsetTop;
+      const containerHeight = container.clientHeight;
+      const containerScrollTop = container.scrollTop;
+      
+      // 새 메시지가 컨테이너 하단에 보이도록 스크롤
+      const targetScrollTop = elementTop - containerHeight + element.offsetHeight + 20; // 20px 여유
+      
+      // 스크롤이 필요한 경우에만 스크롤 (페이지 전체 스크롤 방지)
+      if (targetScrollTop > containerScrollTop) {
+        container.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        });
+      }
+    }
   }, [messages]);
 
   return (
@@ -106,7 +127,10 @@ export function ConversationSet({
       </div>
 
       {/* 대화 영역 */}
-      <div className="h-[400px] overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50/50 to-white">
+      <div 
+        ref={scrollContainerRef}
+        className="h-[400px] overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50/50 to-white"
+      >
         {messages.map((message, index) => (
           <div
             key={message.id}

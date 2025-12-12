@@ -35,6 +35,8 @@ interface SimulationConfig {
   turnsPerBot: number;
   numberOfSets: number;
   exportFormat: 'text' | 'json' | 'excel';
+  temperature: number;
+  topP: number;
 }
 
 export function ChatbotSimulator() {
@@ -47,6 +49,8 @@ export function ChatbotSimulator() {
     turnsPerBot: 3,
     numberOfSets: 2,
     exportFormat: 'text',
+    temperature: 1.2,
+    topP: 0.9,
   });
   const [conversationSets, setConversationSets] = useState<ConversationSetData[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -194,7 +198,43 @@ export function ChatbotSimulator() {
     setModelDialogOpen(null);
   };
 
-  const generateResponse = (
+  // API 키 가져오기 함수
+  const getApiKeyForModel = (modelId: string): string | null => {
+    // 커스텀 모델에서 찾기
+    const customModel = customModels.find(m => m.id === modelId);
+    if (customModel) {
+      return customModel.apiKey;
+    }
+    
+    // 기본 모델의 경우 null 반환 (기본 모델은 API 키가 없음)
+    // 실제로는 환경 변수나 설정에서 가져와야 할 수도 있음
+    return null;
+  };
+
+  // 모델 타입 추정 함수
+  const getModelType = (modelId: string, apiKey: string | null): string => {
+    if (apiKey) {
+      if (apiKey.includes('anthropic') || apiKey.startsWith('sk-ant-')) {
+        return 'anthropic';
+      } else if (apiKey.includes('google') || apiKey.length > 50) {
+        return 'google';
+      } else if (apiKey.startsWith('sk-')) {
+        return 'openai';
+      }
+    }
+    
+    // 모델 ID로 추정
+    if (modelId.includes('Claude') || modelId.includes('claude')) {
+      return 'anthropic';
+    } else if (modelId.includes('Gemini') || modelId.includes('gemini')) {
+      return 'google';
+    } else {
+      return 'openai';
+    }
+  };
+
+  // 템플릿 기반 응답 생성 (API 키가 없는 일반 모델용)
+  const generateTemplateResponse = (
     botNumber: 1 | 2,
     topic: string,
     persona1: string,
@@ -253,6 +293,58 @@ export function ChatbotSimulator() {
     return response;
   };
 
+  // 실제 LLM API를 호출하여 응답 생성 (API 키가 있는 경우)
+  const generateResponse = async (
+    botNumber: 1 | 2,
+    topic: string,
+    persona1: string,
+    persona2: string,
+    previousMessages: Message[]
+  ): Promise<string> => {
+    const persona = botNumber === 1 ? persona1 : persona2;
+    const modelId = botNumber === 1 ? config.llmModel1 : config.llmModel2;
+    const apiKey = getApiKeyForModel(modelId);
+    
+    // API 키가 없으면 템플릿 기반 응답 반환 (시나리오 예시용)
+    if (!apiKey) {
+      return generateTemplateResponse(botNumber, topic, persona1, persona2, previousMessages);
+    }
+    
+    const modelType = getModelType(modelId, apiKey);
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/generate-response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_key: apiKey,
+          model_type: modelType,
+          topic: topic,
+          persona: persona,
+          previous_messages: previousMessages.map(msg => ({
+            bot: msg.bot,
+            text: msg.text,
+          })),
+          bot_number: botNumber,
+          temperature: config.temperature,
+          top_p: config.topP,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return data.text;
+      } else {
+        return `[오류: ${data.error || '응답 생성에 실패했습니다.'}]`;
+      }
+    } catch (error) {
+      return `[오류: ${error instanceof Error ? error.message : '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.'}]`;
+    }
+  };
+
   const startSimulation = async () => {
     if (!config.topic || !config.persona1 || !config.persona2 || config.turnsPerBot < 1 || config.numberOfSets < 1) {
       return;
@@ -271,32 +363,79 @@ export function ChatbotSimulator() {
     // 각 세트에 대해 비동기로 메시지 생성
     const totalMessagesPerSet = config.turnsPerBot * 2;
     
-    for (let messageIndex = 0; messageIndex < totalMessagesPerSet; messageIndex++) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+    // 각 세트별로 독립적으로 메시지 생성
+    const setPromises = initialSets.map(async (set, setIndex) => {
+      // 각 세트의 메시지를 로컬로 추적
+      let localMessages: Message[] = [];
       
-      setConversationSets((prevSets) => {
-        return prevSets.map((set) => {
-          if (set.messages.length < totalMessagesPerSet) {
-            const botNumber = ((set.messages.length % 2) + 1) as 1 | 2;
-            const text = generateResponse(botNumber, config.topic, config.persona1, config.persona2, set.messages);
-            
-            const newMessage: Message = {
-              id: `${set.id}-msg-${set.messages.length}`,
-              bot: botNumber,
-              text,
-              timestamp: new Date(),
-            };
-            
-            return {
-              ...set,
-              messages: [...set.messages, newMessage],
-              isComplete: set.messages.length + 1 >= totalMessagesPerSet,
-            };
-          }
-          return set;
-        });
-      });
-    }
+      for (let messageIndex = 0; messageIndex < totalMessagesPerSet; messageIndex++) {
+        const botNumber = ((localMessages.length % 2) + 1) as 1 | 2;
+        
+        try {
+          // LLM API 호출 (현재까지의 로컬 메시지 사용)
+          const text = await generateResponse(
+            botNumber,
+            config.topic,
+            config.persona1,
+            config.persona2,
+            localMessages
+          );
+          
+          const newMessage: Message = {
+            id: `${set.id}-msg-${localMessages.length}`,
+            bot: botNumber,
+            text,
+            timestamp: new Date(),
+          };
+          
+          // 로컬 메시지 업데이트
+          localMessages = [...localMessages, newMessage];
+          
+          // 상태 업데이트 (함수형 업데이트로 최신 상태 보장)
+          setConversationSets((prevSets) => {
+            const updatedSets = [...prevSets];
+            if (updatedSets[setIndex]) {
+              updatedSets[setIndex] = {
+                ...updatedSets[setIndex],
+                messages: localMessages,
+                isComplete: localMessages.length >= totalMessagesPerSet,
+              };
+            }
+            return updatedSets;
+          });
+        } catch (error) {
+          // 에러 발생 시 에러 메시지 추가
+          const errorMessage: Message = {
+            id: `${set.id}-msg-${localMessages.length}-error`,
+            bot: botNumber,
+            text: `[오류: ${error instanceof Error ? error.message : '알 수 없는 오류'}]`,
+            timestamp: new Date(),
+          };
+          
+          // 로컬 메시지 업데이트
+          localMessages = [...localMessages, errorMessage];
+          
+          // 상태 업데이트
+          setConversationSets((prevSets) => {
+            const updatedSets = [...prevSets];
+            if (updatedSets[setIndex]) {
+              updatedSets[setIndex] = {
+                ...updatedSets[setIndex],
+                messages: localMessages,
+                isComplete: localMessages.length >= totalMessagesPerSet,
+              };
+            }
+            return updatedSets;
+          });
+        }
+        
+        // 다음 메시지 전에 약간의 지연
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    });
+    
+    // 모든 세트의 메시지 생성이 완료될 때까지 대기
+    await Promise.all(setPromises);
 
     setIsSimulating(false);
   };
@@ -517,6 +656,56 @@ export function ChatbotSimulator() {
                 <span>1세트</span>
                 <span>6세트</span>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="temperature" className="block text-gray-700 mb-2">
+                창의성 (Temperature): {config.temperature.toFixed(1)}
+              </label>
+              <input
+                id="temperature"
+                type="range"
+                min="0.0"
+                max="2.0"
+                step="0.1"
+                value={config.temperature}
+                onChange={(e) => setConfig({ ...config, temperature: parseFloat(e.target.value) })}
+                disabled={isSimulating}
+                className="w-full disabled:cursor-not-allowed"
+              />
+              <div className="flex justify-between text-gray-500 text-xs mt-1">
+                <span>일관적 (0.0)</span>
+                <span>균형 (1.0)</span>
+                <span>창의적 (2.0)</span>
+              </div>
+              <p className="text-gray-500 text-xs mt-1">
+                값이 높을수록 더 다양하고 창의적인 응답을 생성합니다.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="topP" className="block text-gray-700 mb-2">
+                다양성 (Top-p): {config.topP.toFixed(1)}
+              </label>
+              <input
+                id="topP"
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={config.topP}
+                onChange={(e) => setConfig({ ...config, topP: parseFloat(e.target.value) })}
+                disabled={isSimulating}
+                className="w-full disabled:cursor-not-allowed"
+              />
+              <div className="flex justify-between text-gray-500 text-xs mt-1">
+                <span>집중적 (0.1)</span>
+                <span>균형 (0.5)</span>
+                <span>다양함 (1.0)</span>
+              </div>
+              <p className="text-gray-500 text-xs mt-1">
+                값이 높을수록 더 다양한 토큰을 고려합니다. Temperature와 사용하면 더 나은 샘플링을 제공합니다.
+              </p>
             </div>
 
             <div>
