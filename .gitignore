@@ -5,3 +5,12 @@ backend/__pycache__
 *.pyo
 *.pyd
 .Python
+
+# Frontend builds
+dist/
+build/
+*.log
+.env
+.DS_Store
+coverage/
+.vscode/
