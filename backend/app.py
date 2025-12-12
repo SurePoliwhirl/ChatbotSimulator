@@ -3,6 +3,7 @@ from flask_cors import CORS
 from validate_api_key import validate_api_key
 from generate_llm_response import generate_llm_response
 from config import LLMRequestConfig, LLMResponse
+from estimate_tokens import estimate_simulation_tokens
 
 app = Flask(__name__)
 CORS(app)  # React 앱에서의 요청을 허용
@@ -120,13 +121,77 @@ def generate_response():
         if result.success:
             return jsonify({
                 'success': True,
-                'text': result.text
+                'text': result.text,
+                'tokens': {
+                    'prompt_tokens': result.prompt_tokens,
+                    'completion_tokens': result.completion_tokens,
+                    'total_tokens': result.total_tokens
+                }
             }), 200
         else:
             return jsonify({
                 'success': False,
                 'error': result.error or '응답 생성에 실패했습니다.'
             }), 200  # 200으로 반환하여 프론트엔드에서 처리 가능하도록
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'서버 오류: {str(e)}'
+        }), 500
+
+@app.route('/api/estimate-tokens', methods=['POST'])
+def estimate_tokens():
+    """
+    시뮬레이션의 예상 토큰 사용량 계산 엔드포인트
+    Request body: {
+        "model_type1": "openai" | "anthropic" | "google",
+        "model_type2": "openai" | "anthropic" | "google",
+        "topic": "대화 주제",
+        "persona1": "페르소나 1",
+        "persona2": "페르소나 2",
+        "turns_per_bot": 3,
+        "number_of_sets": 2
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': '요청 데이터가 없습니다.'
+            }), 400
+        
+        model_type1 = data.get('model_type1', 'openai')
+        model_type2 = data.get('model_type2', 'openai')
+        topic = data.get('topic', '')
+        persona1 = data.get('persona1', '')
+        persona2 = data.get('persona2', '')
+        turns_per_bot = data.get('turns_per_bot', 3)
+        number_of_sets = data.get('number_of_sets', 2)
+        
+        if not topic or not persona1 or not persona2:
+            return jsonify({
+                'success': False,
+                'error': '주제와 페르소나가 필요합니다.'
+            }), 400
+        
+        # 토큰 예측
+        estimate = estimate_simulation_tokens(
+            model_type1=model_type1,
+            model_type2=model_type2,
+            topic=topic,
+            persona1=persona1,
+            persona2=persona2,
+            turns_per_bot=turns_per_bot,
+            number_of_sets=number_of_sets
+        )
+        
+        return jsonify({
+            'success': True,
+            'estimate': estimate
+        }), 200
         
     except Exception as e:
         return jsonify({
