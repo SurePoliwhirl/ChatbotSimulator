@@ -1,8 +1,6 @@
  
   # Chatbot Conversation Generator
 
-  This is a code bundle for Chatbot Conversation Generator. The original project is available at https://www.figma.com/design/SXPT9iSqVaIuvUeX3zWq3C/Chatbot-Conversation-Generator.
-
   ## Running the code
 
   ### 프론트엔드 실행
@@ -20,23 +18,28 @@
   cd backend
   ```
 
-  2. Python 가상 환경 생성 및 활성화 (선택사항):
+  2. [uv](https://github.com/astral-sh/uv) 설치 (아직 설치하지 않은 경우):
   ```bash
-  python -m venv venv
-  # Windows
-  venv\Scripts\activate
+  # Windows (PowerShell)
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
   # Mac/Linux
-  source venv/bin/activate
+  curl -LsSf https://astral.sh/uv/install.sh | sh
   ```
 
-  3. 의존성 설치:
+  3. Python 3.12 설치 (uv가 자동으로 다운로드):
   ```bash
-  pip install -r requirements.txt
+  uv python install 3.12
   ```
 
-  4. 서버 실행:
+  4. 의존성 설치 및 가상 환경 생성:
   ```bash
-  python app.py
+  uv sync
+  ```
+
+  5. 서버 실행:
+  ```bash
+  uv run python app.py
   ```
 
   서버가 `http://localhost:5000`에서 실행됩니다.
