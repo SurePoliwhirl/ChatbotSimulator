@@ -419,6 +419,12 @@ export function ChatbotSimulator() {
           persona2: config.persona2,
           turns_per_bot: config.turnsPerBot,
           number_of_sets: config.numberOfSets,
+          max_tokens1: 120,  // 기본값 (실제 시뮬레이션에서 사용하는 값)
+          max_tokens2: 120,  // 기본값 (실제 시뮬레이션에서 사용하는 값)
+          temperature1: config.temperature1,
+          temperature2: config.temperature2,
+          top_p1: config.topP1,
+          top_p2: config.topP2,
         }),
       });
 
@@ -435,7 +441,7 @@ export function ChatbotSimulator() {
     } finally {
       setIsEstimatingTokens(false);
     }
-  }, [config.topic, config.persona1, config.persona2, config.llmModel1, config.llmModel2, config.turnsPerBot, config.numberOfSets]);
+  }, [config.topic, config.persona1, config.persona2, config.llmModel1, config.llmModel2, config.turnsPerBot, config.numberOfSets, config.temperature1, config.temperature2, config.topP1, config.topP2]);
 
   // 설정이 변경될 때마다 토큰 예측 업데이트
   useEffect(() => {
@@ -1140,6 +1146,38 @@ export function ChatbotSimulator() {
                       <span>세트당 평균:</span>
                       <span>{tokenEstimate.per_set_tokens.toLocaleString()}</span>
                     </div>
+                    {conversationSets.length > 0 && (() => {
+                      // 전체 실제 토큰 계산
+                      const totalActualTokens = conversationSets.reduce((sum, set) => {
+                        return sum + set.messages.reduce((msgSum, msg) => {
+                          return msgSum + (msg.tokens?.total_tokens || 0);
+                        }, 0);
+                      }, 0);
+                      
+                      // 전체 오차 계산 (전체 예상 토큰과 비교)
+                      const totalErrorPercentage = tokenEstimate.total_tokens > 0
+                        ? ((totalActualTokens - tokenEstimate.total_tokens) / tokenEstimate.total_tokens) * 100
+                        : null;
+                      
+                      return (
+                        <>
+                          <div className="border-t border-blue-300 pt-2 mt-2">
+                            <div className="flex justify-between">
+                              <span>실제 사용 토큰:</span>
+                              <span className="font-semibold">{totalActualTokens.toLocaleString()}</span>
+                            </div>
+                            {totalErrorPercentage !== null && (
+                              <div className="flex justify-between mt-1">
+                                <span>전체 오차:</span>
+                                <span className={`font-semibold ${totalErrorPercentage >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  {totalErrorPercentage >= 0 ? '+' : ''}{totalErrorPercentage.toFixed(1)}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

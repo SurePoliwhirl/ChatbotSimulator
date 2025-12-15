@@ -50,7 +50,7 @@ export function ConversationSet({
 
   const averageTokens = messages.length > 0 ? Math.round(actualTokens.total / messages.length) : 0;
   
-  // 오차 계산 (예측 토큰 수와 비교)
+  // 오차 계산 (한 세트당 예상 토큰 수와 비교)
   const errorPercentage = estimatedTokensPerSet && estimatedTokensPerSet > 0
     ? ((actualTokens.total - estimatedTokensPerSet) / estimatedTokensPerSet) * 100
     : null;

@@ -170,6 +170,12 @@ def estimate_tokens():
         persona2 = data.get('persona2', '')
         turns_per_bot = data.get('turns_per_bot', 3)
         number_of_sets = data.get('number_of_sets', 2)
+        max_tokens1 = data.get('max_tokens1', 120)
+        max_tokens2 = data.get('max_tokens2', 120)
+        temperature1 = data.get('temperature1', 1.2)
+        temperature2 = data.get('temperature2', 1.2)
+        top_p1 = data.get('top_p1', 0.9)
+        top_p2 = data.get('top_p2', 0.9)
         
         if not topic or not persona1 or not persona2:
             return jsonify({
@@ -185,7 +191,13 @@ def estimate_tokens():
             persona1=persona1,
             persona2=persona2,
             turns_per_bot=turns_per_bot,
-            number_of_sets=number_of_sets
+            number_of_sets=number_of_sets,
+            max_tokens1=max_tokens1,
+            max_tokens2=max_tokens2,
+            temperature1=temperature1,
+            temperature2=temperature2,
+            top_p1=top_p1,
+            top_p2=top_p2
         )
         
         return jsonify({
