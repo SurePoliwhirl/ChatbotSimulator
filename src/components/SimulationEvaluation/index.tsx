@@ -81,9 +81,9 @@ export function SimulationEvaluation() {
     return (
         <div className="container mx-auto px-4 py-8 max-w-6xl animate-fade-in">
             <div className="mb-8">
-                <h1 className="text-2xl font-semibold text-gray-900 mb-2">Conversation Flow Evaluation</h1>
+                <h1 className="font-semibold text-gray-900 mb-4" style={{ fontSize: '2rem' }}>Simulation Evaluation</h1>
                 <p className="text-gray-500">
-                    Upload simulation logs (JSON, CSV, TXT) to evaluate the coherence, logic, and role-play quality of your chatbots.
+                    JSON, CSV, TXT files are supported. Upload your simulation logs to evaluate the coherence, consistency, and role-play quality of your chatbots.
                 </p>
             </div>
 

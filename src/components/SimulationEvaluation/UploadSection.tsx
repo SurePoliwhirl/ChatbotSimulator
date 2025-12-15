@@ -1,5 +1,5 @@
 import { Upload, FileText, CheckCircle2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 
@@ -11,6 +11,7 @@ interface UploadSectionProps {
 
 export function UploadSection({ onUpload, isAnalyzing, progress }: UploadSectionProps) {
     const [isDragOver, setIsDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -36,34 +37,52 @@ export function UploadSection({ onUpload, isAnalyzing, progress }: UploadSection
         }
     }, [onUpload]);
 
+    const handleLabelClick = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        fileInputRef.current?.click();
+    }, []);
+
     return (
-        <div className="mb-8">
+        <div className="mb-8 flex justify-center">
             {!isAnalyzing && progress === 0 ? (
-                <label
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`
-            relative flex flex-col items-center justify-center w-full h-48 rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden
-            ${isDragOver
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 bg-white hover:border-purple-300 hover:bg-gray-50'
-                        }
-          `}
-                >
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <div className={`p-4 rounded-full mb-3 ${isDragOver ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'}`}>
-                            <Upload className="w-8 h-8" />
+                <>
+                    <input 
+                        ref={fileInputRef}
+                        type="file" 
+                        className="sr-only" 
+                        onChange={handleFileChange} 
+                        accept=".csv,.json,.txt" 
+                        tabIndex={-1}
+                        aria-hidden="true"
+                    />
+                    <div
+                        onClick={handleLabelClick}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`
+                            relative flex flex-col items-center justify-center w-full max-w-2xl min-h-[200px] py-16 px-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer
+                            ${isDragOver
+                                ? 'border-purple-500 bg-purple-50'
+                                : 'border-gray-200 bg-white hover:border-purple-300 hover:bg-gray-50'
+                            }
+                        `}
+                    >
+                        <div className="flex flex-col items-center justify-center pt-2">
+                            <div className={`p-4 rounded-full transition-colors ${isDragOver ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'}`}>
+                                <Upload className="w-8 h-8" />
+                            </div>
+                            <p className="text-sm font-semibold text-gray-900 text-center mb-1">
+                                Click to upload or drag and drop
+                            </p>
+                            <p className="text-xs text-gray-500 text-center mb-6">
+                                JSON, CSV, or TXT file (Max 10MB)
+                            </p>
                         </div>
-                        <p className="mb-2 text-sm text-gray-600">
-                            <span className="font-semibold text-gray-900">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="text-xs text-gray-400">CSV, JSON, or TXT file (Max 10MB)</p>
                     </div>
-                    <input type="file" className="hidden" onChange={handleFileChange} accept=".csv,.json,.txt" />
-                </label>
+                </>
             ) : (
-                <div className="w-full bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-green-100 rounded-full">
