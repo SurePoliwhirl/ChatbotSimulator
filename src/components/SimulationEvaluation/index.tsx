@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { UploadSection } from './UploadSection';
 import { ScoreDashboard } from './ScoreDashboard';
-import { EvaluationTable } from './EvaluationTable';
 import { EvaluationItem } from './EvaluationRow';
+import { EvaluationCards } from './EvaluationCards';
 import { parseJson, parseCsv, parseTxt } from './parsers';
 
 export function SimulationEvaluation() {
@@ -39,6 +39,12 @@ export function SimulationEvaluation() {
                 setIsAnalyzing(false);
             }
         }, 1500); // Slightly slower to feel like "Deep Analysis"
+    };
+
+    const handleReset = () => {
+        setItems([]);
+        setIsAnalyzing(false);
+        setProgress(0);
     };
 
     const handleUpload = (files: FileList) => {
@@ -89,14 +95,16 @@ export function SimulationEvaluation() {
 
             <UploadSection
                 onUpload={handleUpload}
+                onReset={handleReset}
                 isAnalyzing={isAnalyzing || (progress > 0 && progress < 100)}
                 progress={progress}
+                shouldResetOnFileSelect={progress === 100}
             />
 
             {items.some(i => i.status === 'completed') && (
                 <div className="animate-in slide-in-from-bottom-4 duration-700 fade-in">
                     <ScoreDashboard items={items} />
-                    <EvaluationTable items={items.filter(i => i.status === 'completed')} />
+                    <EvaluationCards items={items.filter(i => i.status === 'completed')} />
                 </div>
             )}
         </div>
