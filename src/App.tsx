@@ -10,7 +10,7 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex flex-col">
       {/* Top Navigation */}
       <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
-        <div className="container mx-auto px-4">
+        <div className="max-w-7xl px-4 mt-2" style={{ marginLeft: '270px', marginRight: '2rem' }}>
           <div className="flex items-center h-14 gap-8">
             <div className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mr-4">
 
@@ -20,7 +20,7 @@ export default function App() {
               <button
                 onClick={() => setCurrentView('simulator')}
                 className={`
-                    flex items-center gap-2.5 px-6 py-3 rounded-md text-sm font-medium transition-all duration-200
+                    flex items-center gap-2.5 px-6 py-3 rounded-md text-sm font-medium transition-all duration-200 mt-2
                     ${currentView === 'simulator'
                     ? 'bg-purple-50 border-2 border-purple-600'
                     : 'bg-white/70 hover:bg-white/90 border border-gray-200/60'}
@@ -33,7 +33,7 @@ export default function App() {
               <button
                 onClick={() => setCurrentView('evaluation')}
                 className={`
-                    flex items-center gap-2.5 px-6 py-3 rounded-md text-sm font-medium transition-all duration-200
+                    flex items-center gap-2.5 px-6 py-3 rounded-md text-sm font-medium transition-all duration-200 mt-2
                     ${currentView === 'evaluation'
                     ? 'bg-purple-50 border-2 border-purple-600'
                     : 'bg-white/70 hover:bg-white/90 border border-gray-200/60'}
