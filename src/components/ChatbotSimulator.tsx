@@ -67,6 +67,10 @@ export function ChatbotSimulator() {
   const [modelDialogOpen, setModelDialogOpen] = useState<1 | 2 | null>(null);
   const [showAdvancedSettings1, setShowAdvancedSettings1] = useState(false);
   const [showAdvancedSettings2, setShowAdvancedSettings2] = useState(false);
+  const [tempTemperature1, setTempTemperature1] = useState(config.temperature1);
+  const [tempTopP1, setTempTopP1] = useState(config.topP1);
+  const [tempTemperature2, setTempTemperature2] = useState(config.temperature2);
+  const [tempTopP2, setTempTopP2] = useState(config.topP2);
   const [addModelDialogOpen, setAddModelDialogOpen] = useState(false);
   const [previousModelDialog, setPreviousModelDialog] = useState<1 | 2 | null>(null);
   const [customModels, setCustomModels] = useState<CustomModel[]>([]);
@@ -435,6 +439,21 @@ export function ChatbotSimulator() {
     return () => clearTimeout(timeoutId);
   }, [estimateTokens]);
 
+  // 고급설정이 열릴 때 임시 상태 초기화
+  useEffect(() => {
+    if (showAdvancedSettings1) {
+      setTempTemperature1(config.temperature1);
+      setTempTopP1(config.topP1);
+    }
+  }, [showAdvancedSettings1, config.temperature1, config.topP1]);
+
+  useEffect(() => {
+    if (showAdvancedSettings2) {
+      setTempTemperature2(config.temperature2);
+      setTempTopP2(config.topP2);
+    }
+  }, [showAdvancedSettings2, config.temperature2, config.topP2]);
+
   const startSimulation = async () => {
     if (!config.topic || !config.persona1 || !config.persona2 || config.turnsPerBot < 1 || config.numberOfSets < 1) {
       return;
@@ -716,6 +735,20 @@ export function ChatbotSimulator() {
   
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <style>
+        {`
+          @keyframes slideDownFade {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}
+      </style>
       <header className="text-center mb-8">
         <div className="flex items-center justify-center gap-3 mb-3">
           <img src={botLogo} alt="Chatbot Logo" className="w-10 h-10" />
@@ -749,6 +782,8 @@ export function ChatbotSimulator() {
               />
             </div>
 
+            <hr className="border-gray-300" />
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="persona1" className="text-gray-700">
@@ -773,7 +808,7 @@ export function ChatbotSimulator() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <div className="flex items-center justify-between mt-1">
-                <p className="text-gray-500 text-xs">
+                <p className="text-gray-500 text-xs mb-2">
                   모델: {getModelName(config.llmModel1)}
                 </p>
                 <button
@@ -782,18 +817,25 @@ export function ChatbotSimulator() {
                   className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="고급 설정"
                 >
-                  {showAdvancedSettings1 ? (
-                    <ChevronUp className="w-4 h-4 text-gray-600" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-600" />
-                  )}
+                  <div className={`transition-transform duration-300 ease-in-out ${showAdvancedSettings1 ? 'rotate-180' : ''}`}>
+                    {showAdvancedSettings1 ? (
+                      <ChevronUp className="w-4 h-4 text-gray-600" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-600" />
+                    )}
+                  </div>
                 </button>
               </div>
               {showAdvancedSettings1 && (
-                <div className="mt-3 space-y-4 pl-2 border-l-2 border-blue-200">
+                <div 
+                  className="mt-3 space-y-4 pl-2 border-l-2 border-blue-200"
+                  style={{
+                    animation: 'slideDownFade 0.3s ease-out',
+                  }}
+                >
                   <div>
                     <label htmlFor="temperature1" className="block text-gray-700 mb-2 text-sm">
-                      창의성 (Temperature): {config.temperature1.toFixed(1)}
+                      창의성 (Temperature): {tempTemperature1.toFixed(1)}
                     </label>
                     <input
                       id="temperature1"
@@ -801,8 +843,8 @@ export function ChatbotSimulator() {
                       min="0.0"
                       max="2.0"
                       step="0.1"
-                      value={config.temperature1}
-                      onChange={(e) => setConfig({ ...config, temperature1: parseFloat(e.target.value) })}
+                      value={tempTemperature1}
+                      onChange={(e) => setTempTemperature1(parseFloat(e.target.value))}
                       disabled={isSimulating}
                       className="w-full disabled:cursor-not-allowed"
                     />
@@ -814,7 +856,7 @@ export function ChatbotSimulator() {
                   </div>
                   <div>
                     <label htmlFor="topP1" className="block text-gray-700 mb-2 text-sm">
-                      다양성 (Top-p): {config.topP1.toFixed(2)}
+                      다양성 (Top-p): {tempTopP1.toFixed(2)}
                     </label>
                     <input
                       id="topP1"
@@ -822,8 +864,8 @@ export function ChatbotSimulator() {
                       min="0.1"
                       max="1.0"
                       step="0.05"
-                      value={config.topP1}
-                      onChange={(e) => setConfig({ ...config, topP1: parseFloat(e.target.value) })}
+                      value={tempTopP1}
+                      onChange={(e) => setTempTopP1(parseFloat(e.target.value))}
                       disabled={isSimulating}
                       className="w-full disabled:cursor-not-allowed"
                     />
@@ -832,6 +874,31 @@ export function ChatbotSimulator() {
                       <span>균형 (0.5)</span>
                       <span>다양함 (1.0)</span>
                     </div>
+                  </div>
+                  <div className="pt-1">
+                    <button
+                      onClick={() => {
+                        setConfig({ ...config, temperature1: tempTemperature1, topP1: tempTopP1 });
+                        setShowAdvancedSettings1(false);
+                      }}
+                      disabled={isSimulating}
+                      className="w-full px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                      style={{
+                        backgroundColor: isSimulating ? '#9ca3af' : '#3b82f6',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSimulating) {
+                          e.currentTarget.style.backgroundColor = '#2563eb';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSimulating) {
+                          e.currentTarget.style.backgroundColor = '#3b82f6';
+                        }
+                      }}
+                    >
+                      설정 완료
+                    </button>
                   </div>
                 </div>
               )}
@@ -861,7 +928,7 @@ export function ChatbotSimulator() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <div className="flex items-center justify-between mt-1">
-                <p className="text-gray-500 text-xs">
+                <p className="text-gray-500 text-xs mb-2">
                   모델: {getModelName(config.llmModel2)}
                 </p>
                 <button
@@ -870,18 +937,25 @@ export function ChatbotSimulator() {
                   className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="고급 설정"
                 >
-                  {showAdvancedSettings2 ? (
-                    <ChevronUp className="w-4 h-4 text-gray-600" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-600" />
-                  )}
+                  <div className={`transition-transform duration-300 ease-in-out ${showAdvancedSettings2 ? 'rotate-180' : ''}`}>
+                    {showAdvancedSettings2 ? (
+                      <ChevronUp className="w-4 h-4 text-gray-600" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-600" />
+                    )}
+                  </div>
                 </button>
               </div>
               {showAdvancedSettings2 && (
-                <div className="mt-3 space-y-4 pl-2 border-l-2 border-purple-200">
+                <div 
+                  className="mt-3 space-y-4 pl-2 border-l-2 border-purple-200"
+                  style={{
+                    animation: 'slideDownFade 0.3s ease-out',
+                  }}
+                >
                   <div>
                     <label htmlFor="temperature2" className="block text-gray-700 mb-2 text-sm">
-                      창의성 (Temperature): {config.temperature2.toFixed(1)}
+                      창의성 (Temperature): {tempTemperature2.toFixed(1)}
                     </label>
                     <input
                       id="temperature2"
@@ -889,8 +963,8 @@ export function ChatbotSimulator() {
                       min="0.0"
                       max="2.0"
                       step="0.1"
-                      value={config.temperature2}
-                      onChange={(e) => setConfig({ ...config, temperature2: parseFloat(e.target.value) })}
+                      value={tempTemperature2}
+                      onChange={(e) => setTempTemperature2(parseFloat(e.target.value))}
                       disabled={isSimulating}
                       className="w-full disabled:cursor-not-allowed"
                     />
@@ -902,7 +976,7 @@ export function ChatbotSimulator() {
                   </div>
                   <div>
                     <label htmlFor="topP2" className="block text-gray-700 mb-2 text-sm">
-                      다양성 (Top-p): {config.topP2.toFixed(2)}
+                      다양성 (Top-p): {tempTopP2.toFixed(2)}
                     </label>
                     <input
                       id="topP2"
@@ -910,8 +984,8 @@ export function ChatbotSimulator() {
                       min="0.1"
                       max="1.0"
                       step="0.05"
-                      value={config.topP2}
-                      onChange={(e) => setConfig({ ...config, topP2: parseFloat(e.target.value) })}
+                      value={tempTopP2}
+                      onChange={(e) => setTempTopP2(parseFloat(e.target.value))}
                       disabled={isSimulating}
                       className="w-full disabled:cursor-not-allowed"
                     />
@@ -921,9 +995,36 @@ export function ChatbotSimulator() {
                       <span>다양함 (1.0)</span>
                     </div>
                   </div>
+                  <div className="pt-1">
+                    <button
+                      onClick={() => {
+                        setConfig({ ...config, temperature2: tempTemperature2, topP2: tempTopP2 });
+                        setShowAdvancedSettings2(false);
+                      }}
+                      disabled={isSimulating}
+                      className="w-full px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                      style={{
+                        backgroundColor: isSimulating ? '#9ca3af' : '#3b82f6',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSimulating) {
+                          e.currentTarget.style.backgroundColor = '#2563eb';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSimulating) {
+                          e.currentTarget.style.backgroundColor = '#3b82f6';
+                        }
+                      }}
+                    >
+                      설정 완료
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
+
+            <hr className="border-gray-300" />
 
             <div>
               <label htmlFor="turns" className="block text-gray-700 mb-2">
