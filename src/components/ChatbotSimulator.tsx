@@ -52,8 +52,8 @@ export function ChatbotSimulator() {
     topic: '',
     persona1: '',
     persona2: '',
-    llmModel1: 'GPT-4',
-    llmModel2: 'GPT-4',
+    llmModel1: '',
+    llmModel2: '',
     turnsPerBot: 3,
     numberOfSets: 2,
     exportFormat: 'text',
@@ -210,19 +210,19 @@ export function ChatbotSimulator() {
       setCustomModels(customModels.filter(m => m.id !== modelId));
     }
     
-    // 삭제된 모델이 현재 선택된 모델이면 다른 모델로 변경
-    const remainingModels = availableModels.filter(m => m.id !== modelId);
-    const fallbackModelId = remainingModels.length > 0 ? remainingModels[0].id : 'GPT-4';
-    
+    // 삭제된 모델이 현재 선택된 모델이면 '선택 없음'으로 변경
     if (config.llmModel1 === modelId) {
-      setConfig({ ...config, llmModel1: fallbackModelId });
+      setConfig({ ...config, llmModel1: '' });
     }
     if (config.llmModel2 === modelId) {
-      setConfig({ ...config, llmModel2: fallbackModelId });
+      setConfig({ ...config, llmModel2: '' });
     }
   };
 
   const getModelName = (modelId: string): string => {
+    if (!modelId || modelId === '') {
+      return '선택된 모델 없음';
+    }
     const model = availableModels.find(m => m.id === modelId);
     return model ? model.name : modelId;
   };
@@ -462,7 +462,30 @@ export function ChatbotSimulator() {
   }, [showAdvancedSettings2, config.temperature2, config.topP2]);
 
   const startSimulation = async () => {
+    // 모델 선택 확인
+    if (!config.llmModel1 || !config.llmModel2) {
+      const missingModel = !config.llmModel1 && !config.llmModel2 
+        ? '챗봇 1과 챗봇 2' 
+        : !config.llmModel1 
+        ? '챗봇 1' 
+        : '챗봇 2';
+      toast.error('시뮬레이션 시작 불가', {
+        description: `${missingModel}의 선택된 모델이 없어 시뮬레이션 시작이 불가합니다.`,
+        duration: 3000,
+      });
+      return;
+    }
+
     if (!config.topic || !config.persona1 || !config.persona2 || config.turnsPerBot < 1 || config.numberOfSets < 1) {
+      const missingFields: string[] = [];
+      if (!config.topic) missingFields.push('토론 주제');
+      if (!config.persona1) missingFields.push('챗봇 1 페르소나');
+      if (!config.persona2) missingFields.push('챗봇 2 페르소나');
+      
+      toast.error('시뮬레이션 시작 불가', {
+        description: `${missingFields.join(', ')}${missingFields.length > 1 ? '을' : '를'} 입력해주세요.`,
+        duration: 3000,
+      });
       return;
     }
 
@@ -820,7 +843,7 @@ export function ChatbotSimulator() {
                 </p>
                 <button
                   onClick={() => setShowAdvancedSettings1(!showAdvancedSettings1)}
-                  disabled={isSimulating}
+                  disabled={isSimulating || !config.llmModel1}
                   className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="고급 설정"
                 >
@@ -940,7 +963,7 @@ export function ChatbotSimulator() {
                 </p>
                 <button
                   onClick={() => setShowAdvancedSettings2(!showAdvancedSettings2)}
-                  disabled={isSimulating}
+                  disabled={isSimulating || !config.llmModel2}
                   className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="고급 설정"
                 >
@@ -1125,7 +1148,7 @@ export function ChatbotSimulator() {
             <div className="flex flex-col gap-2 pt-4">
               <button
                 onClick={startSimulation}
-                disabled={isSimulating || !config.topic || !config.persona1 || !config.persona2}
+                disabled={isSimulating}
                 className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4" />
