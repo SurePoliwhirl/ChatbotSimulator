@@ -5,6 +5,7 @@ import { ConversationSet } from './ConversationSet';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
@@ -96,12 +97,12 @@ export function ChatbotSimulator() {
   ]);
 
   const availableModels = [
-    ...defaultModels,
     ...customModels.map(m => ({
       id: m.id,
       name: m.name,
       description: m.description,
     })),
+    ...defaultModels,
   ];
 
   // API 키 검증 함수
@@ -169,11 +170,17 @@ export function ChatbotSimulator() {
         description: '사용자 정의 모델',
       };
 
-      setCustomModels([...customModels, newModel]);
+      setCustomModels([newModel, ...customModels]);
       // 입력 필드 초기화
       setNewModelName('');
       setNewModelApiKey('');
       setValidationError(null);
+      
+      // 성공 메시지 표시
+      toast.success('모델이 성공적으로 추가되었습니다!', {
+        description: `${newModel.name} 모델이 목록에 추가되었습니다.`,
+        duration: 3000,
+      });
       
       // 모델 추가 모달 닫고, 이전에 열려있던 모델 선택 모달로 돌아가기
       setAddModelDialogOpen(false);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChatbotSimulator } from './components/ChatbotSimulator';
 import { SimulationEvaluation } from './components/SimulationEvaluation';
 import { MessageSquare, BarChart2 } from 'lucide-react';
+import { Toaster } from './components/ui/sonner';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'simulator' | 'evaluation'>('simulator');
@@ -54,6 +55,7 @@ export default function App() {
           <SimulationEvaluation />
         )}
       </main>
+      <Toaster />
     </div>
   );
 }
