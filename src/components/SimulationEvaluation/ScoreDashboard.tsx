@@ -62,7 +62,7 @@ export function ScoreDashboard({ items }: ScoreDashboardProps) {
                         <div className="p-2 rounded-lg bg-blue-100">
                             <BarChart3 className="size-5 text-blue-600" />
                         </div>
-                        <CardTitle className="text-gray-700">Score Distribution</CardTitle>
+                        <CardTitle className="text--700">Score Distribution</CardTitle>
                     </div>
                 </CardHeader>
                 <CardContent>
