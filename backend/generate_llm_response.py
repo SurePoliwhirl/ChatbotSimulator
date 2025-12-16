@@ -67,6 +67,7 @@ def generate_conversation_prompt(api_key: str, topic: str, persona1: str, person
 
 아래 입력을 기반으로 역할 프롬프트를 생성하라.
 
+
 주제: {topic}
 페르소나1: {persona1}
 페르소나2: {persona2}

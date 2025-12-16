@@ -64,6 +64,7 @@ export function ChatbotSimulator() {
   });
   const [conversationSets, setConversationSets] = useState<ConversationSetData[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [initialNumberOfSets, setInitialNumberOfSets] = useState<number | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState<1 | 2 | null>(null);
   const [showAdvancedSettings1, setShowAdvancedSettings1] = useState(false);
@@ -498,16 +499,18 @@ export function ChatbotSimulator() {
       return;
     }
 
-    setIsSimulating(true);
-    
     // 동적 프롬프트 생성 (첫 번째 모델의 API 키 사용)
     let customSystemPrompt: string | undefined = undefined;
-    try {
-      const modelId1 = config.llmModel1;
-      const apiKey1 = getApiKeyForModel(modelId1);
+    
+    const modelId1 = config.llmModel1;
+    const apiKey1 = getApiKeyForModel(modelId1);
+    
+    if (apiKey1) {
+      // 프롬프트 생성 시작
+      setIsGeneratingPrompt(true);
+      toast.info('대화 프롬프트 생성 중...', { duration: 3000 });
       
-      if (apiKey1) {
-        toast.info('대화 프롬프트 생성 중...', { duration: 2000 });
+      try {
         const promptResponse = await fetch('http://localhost:5000/api/generate-prompt', {
           method: 'POST',
           headers: {
@@ -528,11 +531,16 @@ export function ChatbotSimulator() {
         } else {
           toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
         }
+      } catch (error) {
+        console.error('프롬프트 생성 오류:', error);
+        toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
+      } finally {
+        setIsGeneratingPrompt(false);
       }
-    } catch (error) {
-      console.error('프롬프트 생성 오류:', error);
-      toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
     }
+    
+    // 프롬프트 생성이 완료된 후 시뮬레이션 시작
+    setIsSimulating(true);
     
     // 시뮬레이션 시작 시점의 numberOfSets 저장
     setInitialNumberOfSets(config.numberOfSets);
@@ -718,8 +726,8 @@ export function ChatbotSimulator() {
         topic: config.topic,
         persona1: config.persona1,
         persona2: config.persona2,
-        llmModel1: config.llmModel1,
-        llmModel2: config.llmModel2,
+        llmModel1: getModelName(config.llmModel1),
+        llmModel2: getModelName(config.llmModel2),
         temperature1: config.temperature1,
         temperature2: config.temperature2,
         topP1: config.topP1,
@@ -851,7 +859,7 @@ export function ChatbotSimulator() {
                 placeholder="예: 인공지능, 기후변화"
                 value={config.topic}
                 onChange={(e) => setConfig({ ...config, topic: e.target.value })}
-                disabled={isSimulating}
+                disabled={isSimulating || isGeneratingPrompt}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
@@ -865,7 +873,7 @@ export function ChatbotSimulator() {
                 </label>
                 <button
                   onClick={() => setModelDialogOpen(1)}
-                  disabled={isSimulating}
+                  disabled={isSimulating || isGeneratingPrompt}
                   className="p-1.5 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="모델 설정"
                 >
@@ -878,7 +886,7 @@ export function ChatbotSimulator() {
                 placeholder="예: 철학자, 낙관론자"
                 value={config.persona1}
                 onChange={(e) => setConfig({ ...config, persona1: e.target.value })}
-                disabled={isSimulating}
+                disabled={isSimulating || isGeneratingPrompt}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <div className="flex items-center justify-between mt-1">
@@ -919,7 +927,7 @@ export function ChatbotSimulator() {
                       step="0.1"
                       value={tempTemperature1}
                       onChange={(e) => setTempTemperature1(parseFloat(e.target.value))}
-                      disabled={isSimulating}
+                      disabled={isSimulating || isGeneratingPrompt}
                       className="w-full disabled:cursor-not-allowed"
                     />
                     <div className="flex justify-between text-gray-500 text-xs mt-1">
@@ -940,7 +948,7 @@ export function ChatbotSimulator() {
                       step="0.05"
                       value={tempTopP1}
                       onChange={(e) => setTempTopP1(parseFloat(e.target.value))}
-                      disabled={isSimulating}
+                      disabled={isSimulating || isGeneratingPrompt}
                       className="w-full disabled:cursor-not-allowed"
                     />
                     <div className="flex justify-between text-gray-500 text-xs mt-1">
@@ -955,18 +963,18 @@ export function ChatbotSimulator() {
                         setConfig({ ...config, temperature1: tempTemperature1, topP1: tempTopP1 });
                         setShowAdvancedSettings1(false);
                       }}
-                      disabled={isSimulating}
+                      disabled={isSimulating || isGeneratingPrompt}
                       className="w-full px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                       style={{
-                        backgroundColor: isSimulating ? '#9ca3af' : '#3b82f6',
+                        backgroundColor: (isSimulating || isGeneratingPrompt) ? '#9ca3af' : '#3b82f6',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSimulating) {
+                        if (!isSimulating && !isGeneratingPrompt) {
                           e.currentTarget.style.backgroundColor = '#2563eb';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!isSimulating) {
+                        if (!isSimulating && !isGeneratingPrompt) {
                           e.currentTarget.style.backgroundColor = '#3b82f6';
                         }
                       }}
@@ -985,7 +993,7 @@ export function ChatbotSimulator() {
                 </label>
                 <button
                   onClick={() => setModelDialogOpen(2)}
-                  disabled={isSimulating}
+                  disabled={isSimulating || isGeneratingPrompt}
                   className="p-1.5 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="모델 설정"
                 >
@@ -998,7 +1006,7 @@ export function ChatbotSimulator() {
                 placeholder="예: 과학자, 비판론자"
                 value={config.persona2}
                 onChange={(e) => setConfig({ ...config, persona2: e.target.value })}
-                disabled={isSimulating}
+                disabled={isSimulating || isGeneratingPrompt}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <div className="flex items-center justify-between mt-1">
@@ -1039,7 +1047,7 @@ export function ChatbotSimulator() {
                       step="0.1"
                       value={tempTemperature2}
                       onChange={(e) => setTempTemperature2(parseFloat(e.target.value))}
-                      disabled={isSimulating}
+                      disabled={isSimulating || isGeneratingPrompt}
                       className="w-full disabled:cursor-not-allowed"
                     />
                     <div className="flex justify-between text-gray-500 text-xs mt-1">
@@ -1060,7 +1068,7 @@ export function ChatbotSimulator() {
                       step="0.05"
                       value={tempTopP2}
                       onChange={(e) => setTempTopP2(parseFloat(e.target.value))}
-                      disabled={isSimulating}
+                      disabled={isSimulating || isGeneratingPrompt}
                       className="w-full disabled:cursor-not-allowed"
                     />
                     <div className="flex justify-between text-gray-500 text-xs mt-1">
@@ -1075,18 +1083,18 @@ export function ChatbotSimulator() {
                         setConfig({ ...config, temperature2: tempTemperature2, topP2: tempTopP2 });
                         setShowAdvancedSettings2(false);
                       }}
-                      disabled={isSimulating}
+                      disabled={isSimulating || isGeneratingPrompt}
                       className="w-full px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                       style={{
-                        backgroundColor: isSimulating ? '#9ca3af' : '#3b82f6',
+                        backgroundColor: (isSimulating || isGeneratingPrompt) ? '#9ca3af' : '#3b82f6',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSimulating) {
+                        if (!isSimulating && !isGeneratingPrompt) {
                           e.currentTarget.style.backgroundColor = '#2563eb';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!isSimulating) {
+                        if (!isSimulating && !isGeneratingPrompt) {
                           e.currentTarget.style.backgroundColor = '#3b82f6';
                         }
                       }}
@@ -1111,7 +1119,7 @@ export function ChatbotSimulator() {
                 max="10"
                 value={config.turnsPerBot}
                 onChange={(e) => setConfig({ ...config, turnsPerBot: parseInt(e.target.value) })}
-                disabled={isSimulating}
+                disabled={isSimulating || isGeneratingPrompt}
                 className="w-full disabled:cursor-not-allowed"
               />
               <div className="flex justify-between text-gray-500 text-xs mt-1">
@@ -1134,7 +1142,7 @@ export function ChatbotSimulator() {
                 max="6"
                 value={config.numberOfSets}
                 onChange={(e) => setConfig({ ...config, numberOfSets: parseInt(e.target.value) })}
-                disabled={isSimulating}
+                disabled={isSimulating || isGeneratingPrompt}
                 className="w-full disabled:cursor-not-allowed"
               />
               <div className="flex justify-between text-gray-500 text-xs mt-1">
@@ -1151,7 +1159,7 @@ export function ChatbotSimulator() {
                 id="exportFormat"
                 value={config.exportFormat}
                 onChange={(e) => setConfig({ ...config, exportFormat: e.target.value as 'excel' | 'text' | 'json' })}
-                disabled={isSimulating}
+                disabled={isSimulating || isGeneratingPrompt}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="text">텍스트 (.txt)</option>
@@ -1224,7 +1232,7 @@ export function ChatbotSimulator() {
             <div className="flex flex-col gap-2 pt-4">
               <button
                 onClick={startSimulation}
-                disabled={isSimulating}
+                disabled={isSimulating || isGeneratingPrompt}
                 className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4" />
@@ -1235,7 +1243,7 @@ export function ChatbotSimulator() {
                 <>
                   <button
                     onClick={exportConversations}
-                    disabled={isSimulating}
+                    disabled={isSimulating || isGeneratingPrompt}
                     className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
                     <Download className="w-4 h-4" />
@@ -1244,7 +1252,7 @@ export function ChatbotSimulator() {
 
                   <button
                     onClick={clearConversation}
-                    disabled={isSimulating}
+                    disabled={isSimulating || isGeneratingPrompt}
                     className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
