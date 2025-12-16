@@ -49,11 +49,12 @@ export default function App() {
       </div>
 
       <main className="flex-1">
-        {currentView === 'simulator' ? (
+        <div style={{ display: currentView === 'simulator' ? 'block' : 'none' }}>
           <ChatbotSimulator />
-        ) : (
+        </div>
+        <div style={{ display: currentView === 'evaluation' ? 'block' : 'none' }}>
           <SimulationEvaluation />
-        )}
+        </div>
       </main>
       <Toaster />
     </div>
