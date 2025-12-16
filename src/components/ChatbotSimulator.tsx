@@ -508,7 +508,7 @@ export function ChatbotSimulator() {
     if (apiKey1) {
       // 프롬프트 생성 시작
       setIsGeneratingPrompt(true);
-      toast.info('대화 프롬프트 생성 중...', { duration: 3000 });
+      const loadingToastId = toast.info('대화 프롬프트 생성 중...', { duration: Infinity });
       
       try {
         const promptResponse = await fetch('http://localhost:5000/api/generate-prompt', {
@@ -525,6 +525,10 @@ export function ChatbotSimulator() {
         });
         
         const promptData = await promptResponse.json();
+        
+        // 생성 중 toast 닫기
+        toast.dismiss(loadingToastId);
+        
         if (promptData.success && promptData.prompt) {
           customSystemPrompt = promptData.prompt;
           toast.success('프롬프트 생성 완료', { duration: 2000 });
@@ -533,6 +537,8 @@ export function ChatbotSimulator() {
         }
       } catch (error) {
         console.error('프롬프트 생성 오류:', error);
+        // 생성 중 toast 닫기
+        toast.dismiss(loadingToastId);
         toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
       } finally {
         setIsGeneratingPrompt(false);
