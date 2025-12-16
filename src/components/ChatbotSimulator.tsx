@@ -337,7 +337,8 @@ export function ChatbotSimulator() {
     topic: string,
     persona1: string,
     persona2: string,
-    previousMessages: Message[]
+    previousMessages: Message[],
+    customSystemPrompt?: string
   ): Promise<string> => {
     const persona = botNumber === 1 ? persona1 : persona2;
     const modelId = botNumber === 1 ? config.llmModel1 : config.llmModel2;
@@ -363,6 +364,7 @@ export function ChatbotSimulator() {
           model_type: modelType,
           topic: topic,
           persona: persona,
+          other_persona: botNumber === 1 ? persona2 : persona1,  // 상대방 페르소나 전달
           previous_messages: previousMessages.map(msg => ({
             bot: msg.bot,
             text: msg.text,
@@ -370,6 +372,7 @@ export function ChatbotSimulator() {
           bot_number: botNumber,
           temperature: temperature,
           top_p: topP,
+          custom_system_prompt: customSystemPrompt,
         }),
       });
 
@@ -497,6 +500,40 @@ export function ChatbotSimulator() {
 
     setIsSimulating(true);
     
+    // 동적 프롬프트 생성 (첫 번째 모델의 API 키 사용)
+    let customSystemPrompt: string | undefined = undefined;
+    try {
+      const modelId1 = config.llmModel1;
+      const apiKey1 = getApiKeyForModel(modelId1);
+      
+      if (apiKey1) {
+        toast.info('대화 프롬프트 생성 중...', { duration: 2000 });
+        const promptResponse = await fetch('http://localhost:5000/api/generate-prompt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            api_key: apiKey1,
+            topic: config.topic,
+            persona1: config.persona1,
+            persona2: config.persona2,
+          }),
+        });
+        
+        const promptData = await promptResponse.json();
+        if (promptData.success && promptData.prompt) {
+          customSystemPrompt = promptData.prompt;
+          toast.success('프롬프트 생성 완료', { duration: 2000 });
+        } else {
+          toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
+        }
+      }
+    } catch (error) {
+      console.error('프롬프트 생성 오류:', error);
+      toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
+    }
+    
     // 시뮬레이션 시작 시점의 numberOfSets 저장
     setInitialNumberOfSets(config.numberOfSets);
     
@@ -520,13 +557,14 @@ export function ChatbotSimulator() {
         const botNumber = ((localMessages.length % 2) + 1) as 1 | 2;
         
         try {
-          // LLM API 호출 (현재까지의 로컬 메시지 사용)
+          // LLM API 호출 (현재까지의 로컬 메시지 사용, 커스텀 프롬프트 전달)
           const response = await generateResponse(
             botNumber,
             config.topic,
             config.persona1,
             config.persona2,
-            localMessages
+            localMessages,
+            customSystemPrompt
           );
           
           // 응답 파싱 (JSON 문자열 또는 일반 텍스트)

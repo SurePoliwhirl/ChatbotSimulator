@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from validate_api_key import validate_api_key
-from generate_llm_response import generate_llm_response
+from generate_llm_response import generate_llm_response, generate_conversation_prompt
 from config import LLMRequestConfig, LLMResponse
 from estimate_tokens import estimate_simulation_tokens
 
@@ -52,6 +52,63 @@ def validate_key():
             'error': f'서버 오류: {str(e)}'
         }), 500
 
+@app.route('/api/generate-prompt', methods=['POST'])
+def generate_prompt():
+    """
+    주제와 페르소나에 맞는 대화 프롬프트를 동적으로 생성하는 엔드포인트
+    Request body: {
+        "api_key": "sk-...",
+        "topic": "대화 주제",
+        "persona1": "페르소나 1",
+        "persona2": "페르소나 2"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': '요청 데이터가 없습니다.'
+            }), 400
+        
+        api_key = data.get('api_key')
+        topic = data.get('topic')
+        persona1 = data.get('persona1')
+        persona2 = data.get('persona2')
+        
+        if not api_key:
+            return jsonify({
+                'success': False,
+                'error': 'API 키가 제공되지 않았습니다.'
+            }), 400
+        
+        if not topic or not persona1 or not persona2:
+            return jsonify({
+                'success': False,
+                'error': '주제와 페르소나가 필요합니다.'
+            }), 400
+        
+        # 프롬프트 생성
+        generated_prompt = generate_conversation_prompt(api_key, topic, persona1, persona2)
+        
+        if generated_prompt:
+            return jsonify({
+                'success': True,
+                'prompt': generated_prompt
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': '프롬프트 생성에 실패했습니다.'
+            }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'서버 오류: {str(e)}'
+        }), 500
+
 @app.route('/api/generate-response', methods=['POST'])
 def generate_response():
     """
@@ -61,8 +118,10 @@ def generate_response():
         "model_type": "openai" | "anthropic" | "google",
         "topic": "대화 주제",
         "persona": "페르소나",
+        "other_persona": "상대방 페르소나 (선택사항)",
         "previous_messages": [{"bot": 1, "text": "..."}, ...],
-        "bot_number": 1 or 2
+        "bot_number": 1 or 2,
+        "custom_system_prompt": "동적으로 생성된 프롬프트 (선택사항)"
     }
     """
     try:
@@ -78,10 +137,12 @@ def generate_response():
         model_type = data.get('model_type', 'openai')
         topic = data.get('topic')
         persona = data.get('persona')
+        other_persona = data.get('other_persona')  # 상대방 페르소나
         previous_messages = data.get('previous_messages', [])
         bot_number = data.get('bot_number', 1)
         temperature = data.get('temperature', 1.2)  # 기본값 1.2
         top_p = data.get('top_p', 0.9)  # 기본값 0.9
+        custom_system_prompt = data.get('custom_system_prompt')  # 동적으로 생성된 프롬프트
         
         if not api_key:
             return jsonify({
@@ -115,8 +176,8 @@ def generate_response():
             top_p=float(top_p)
         )
         
-        # LLM 응답 생성
-        result = generate_llm_response(config)
+        # LLM 응답 생성 (커스텀 프롬프트와 상대방 페르소나 전달)
+        result = generate_llm_response(config, custom_system_prompt, other_persona)
         
         if result.success:
             return jsonify({
