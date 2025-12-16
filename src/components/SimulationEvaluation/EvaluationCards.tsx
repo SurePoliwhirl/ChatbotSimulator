@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
-import { MessageSquare, ChevronDown, Bot, User, CheckCircle2, TrendingUp } from "lucide-react";
+import { MessageSquare, ChevronDown, Bot, User, CheckCircle2, TrendingUp, Sparkles } from "lucide-react";
 import { EvaluationItem } from "./EvaluationRow";
 
 interface EvaluationCardsProps {
@@ -25,7 +25,7 @@ export function EvaluationCards({ items }: EvaluationCardsProps) {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-1">
             {/* Conversation Log */}
             <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-blue-50/70 via-indigo-50/60 to-slate-50/60">
                 <CardHeader className="bg-gradient-to-r from-blue-50 to-slate-50">
@@ -47,17 +47,38 @@ export function EvaluationCards({ items }: EvaluationCardsProps) {
                                 <CollapsibleTrigger className="w-full p-6 hover:bg-blue-50/60 transition-colors">
                                     <div className="flex items-start gap-4">
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-3">
-                                                <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-md text-xs font-semibold">
-                                                    {item.topic}
-                                                </Badge>
+                                            {/* Topic and Personas Section */}
+                                            <div className="mb-4 pb-3 border-b border-gray-200">
+                                                <div className="flex items-center gap-3 mb-2 py-1">
+                                                    <Sparkles className="w-6 h-6 text-blue-600" />
+                                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-2 py-1.5 rounded-md text-sm font-semibold border-0">
+                                                        {item.topic}
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex flex-col gap-1.5 text-xs text-gray-600 mt-2">
+                                                    <div className="flex items-center gap-2 py-1">
+                                                        <User className="w-3.5 h-3.5 text-blue-500" />
+                                                        <span className="font-medium text-gray-700">Bot 1:</span>
+                                                        <span className="text-gray-600">{item.persona1}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 py-1">
+                                                        <Bot className="w-3.5 h-3.5 text-purple-500" />
+                                                        <span className="font-medium text-gray-700">Bot 2:</span>
+                                                        <span className="text-gray-600">{item.persona2}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Dialogue Preview */}
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-xs font-medium text-gray-500">대화 미리보기</span>
                                                 <ChevronDown
                                                     className={`w-4 h-4 text-gray-400 transition-transform ${
                                                         openItems.includes(item.id) ? "rotate-180" : ""
                                                     }`}
                                                 />
                                             </div>
-                                            <div className="mt-3 text-left">
+                                            <div className="text-left">
                                                 {item.dialogueLog.slice(0, 1).map((msg, idx) => {
                                                     const info = getSpeakerInfo(msg.speaker);
                                                     return (
