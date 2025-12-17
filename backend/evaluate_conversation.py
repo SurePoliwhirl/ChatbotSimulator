@@ -1,7 +1,17 @@
 import os
 import json
 import requests
+import logging
+from datetime import datetime
 from config import LLMResponse
+
+# Configure logging
+logging.basicConfig(
+    filename='evaluation_logs.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    encoding='utf-8' # Ensure utf-8 for Korean characters
+)
 
 def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
     """
@@ -10,7 +20,9 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
     """
     api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
-        return {'success': False, 'error': 'Server configuration error: OPENAI_API_KEY not found.'}
+        error_msg = 'Server configuration error: OPENAI_API_KEY not found.'
+        logging.error(error_msg)
+        return {'success': False, 'error': error_msg}
 
     # Format dialogue log into a single string
     # Assuming dialogue_log is a list of objects like { 'speaker': 'Bot 1', 'text': '...' }
@@ -32,13 +44,15 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
 
 - 제공된 `대화 내용`이 `주제`에 부합하는지, 그리고 각 챗봇이 부여받은 `페르소나`를 끝까지 유지하며 자연스럽게 대화를 이어가는지를 평가합니다.
 - 3가지 핵심 평가 척도(맥락, 페르소나, 논리)를 종합하여 1~5점 척도로 정량화하고, 그 근거를 작성합니다.
+- **(핵심 목표) 두 챗봇이 서로의 페르소나를 혼동하거나, 상대방의 설정을 자신의 것으로 착각하는 '페르소나 스위칭(Persona Switching)' 현상을 찾아내는 것이 가장 중요합니다.**
 
 ### 3. 입력 데이터
 
 - **대화 주제:** {topic}
-- **페르소나 A:** {persona1}
-- **페르소나 B:** {persona2}
+- **페르소나 A (발화자 A):** {persona1}
+- **페르소나 B (발화자 B):** {persona2}
 - **대화 내용:**
+(참고: 대화 로그의 발화자 이름이 명시되지 않은 경우, 첫 번째 발화자를 A, 두 번째 발화자를 B로 간주하여 분석하십시오.)
 {dialogue_text}
 
 ### 4. 핵심 평가 척도 (Evaluation Metrics)
@@ -46,13 +60,18 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
 평가 시 아래 세 가지 척도를 기준으로 분석해야 합니다.
 
 1. **맥락 유지 및 흐름 (Context Flow):** 이전 발화의 내용을 정확히 기억하고 이어받고 있는가? 대화가 끊기거나 급작스럽게 화제가 전환되지 않는가?
-2. **페르소나 일관성 (Persona Consistency):** 각 챗봇이 부여된 역할(성격, 말투, 지식 수준)을 대화 시작부터 끝까지 일관되게 유지하는가? 상대방의 페르소나에 맞춰 적절히 반응하는가?
+2. **페르소나 일관성 (Persona Consistency):** 
+   - 각 챗봇이 부여된 역할(성격, 말투, 지식 수준)을 대화 시작부터 끝까지 일관되게 유지하는가?
+   - **(Critical Check)**: 상대방의 페르소나를 자신의 것으로 착각하거나, 역할이 뒤바뀌는 모습이 보이지 않는가?
 3. **주제 집중도 (Topic Adherence):** 대화가 주어진 주제에서 벗어나지 않고, 밀도 있게 논의가 진행되는가?
 
 ### 5. 평가 원칙
 
 - **전체론적 평가 (Holistic View):** 특정 발화 하나가 아닌, 대화 전체의 흐름(History)을 보고 판단합니다.
-- **엄격한 페르소나 검증:** 챗봇이 자신의 역할을 망각하고 'AI스러운' 기계적 답변을 하거나, 상대방의 말투를 무분별하게 따라 하는 경우(Echoing) 엄격히 감점합니다.
+- **엄격한 페르소나 검증 (Zero Tolerance for Swapping):** 
+   - 챗봇이 자신의 역할을 망각하거나 상대방의 설정을 훔쳐서 말하는 경우(Persona Leakage/Swapping)는 대화 품질의 치명적인 결함입니다.
+   - **이러한 혼동이 단 한 번이라도 발견되면, '페르소나 일관성' 점수는 무조건 1점을 부여해야 합니다.**
+   - 감점 시, "어떤 발화에서 페르소나 혼동이 일어났는지" 이유에 명시하십시오.
 - **환각(Hallucination) 감지:** 대화 맥락과 상관없는 거짓 정보를 생성하거나, 앞뒤 말이 모순되는 경우 최하점을 부여합니다.
 
 ### 6. 금지사항
@@ -74,9 +93,9 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
 
 - **5점 (Perfect):** 두 페르소나가 완벽하게 구현되었으며, 주제에 대해 깊이 있고 자연스러운 티키타카(Turn-taking)가 이루어진 경우.
 - **4점 (Good):** 대화 흐름과 주제 의식은 명확하나, 페르소나의 매력이 다소 약하거나 아주 경미한 맥락 불일치가 1회 정도 있는 경우.
-- **3점 (Acceptable):** 대화는 진행되으나, 페르소나가 희미하거나 기계적인 답변이 섞여 몰입감을 해치는 경우. 또는 주제 겉핥기식 대화.
+- **3점 (Acceptable):** 대화는 진행되으나, 페르소나가 희미하거나 기계적인 답변이 섞여 몰입감을 해치는 경우.
 - **2점 (Poor):** 대화 도중 문맥을 잃고 동문서답(Incoherent)하거나, 페르소나가 붕괴되어 상대방과 구분되지 않는 경우.
-- **1점 (Bad):** 주제와 전혀 무관한 이야기를 하거나, 논리적 모순/심각한 할루시네이션으로 대화 성립이 불가능한 경우.
+- **1점 (Bad):** **(즉시 낙제)** 서로의 페르소나가 뒤바뀌거나(Swapping), 자신의 역할을 잊어버린 경우. 또는 주제와 무관한 이야기를 하는 경우.
 
 ### 9. 출력 예시
 
@@ -84,7 +103,7 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
 
 ```JSON
 {{
-    "reason": "...",
+    "reason": "페르소나 A는 ... 했으나, B의 발화 '...'에서 A의 설정을 언급하며 역할 혼동이 발생했습니다. 따라서 페르소나 일관성에 심각한 문제가 있습니다.",
     "score": {{
         "맥락 유지": 0,
         "페르소나 일관성": 0,
@@ -93,6 +112,9 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
 }}
 ```
 """
+
+    # Log the generated prompt
+    logging.info(f"[{datetime.now()}] Generated Prompt:\n{prompt}\n{'-'*50}")
 
     headers = {
         'Authorization': f'Bearer {api_key}',
@@ -127,14 +149,20 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
             result = response.json()
             content = result['choices'][0]['message']['content']
             
+            # Log the raw LLM response
+            logging.info(f"[{datetime.now()}] Raw LLM Response:\n{content}\n{'='*50}")
+            
             # Parse JSON content
             try:
                 parsed_content = json.loads(content)
                 return {'success': True, 'result': parsed_content}
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON Parse Error: {str(e)}\nContent: {content}")
                 return {'success': False, 'error': 'Failed to parse JSON response from LLM', 'raw_content': content}
         else:
+            logging.error(f"OpenAI API Error: {response.text}")
             return {'success': False, 'error': f"OpenAI API Error: {response.text}"}
             
     except Exception as e:
+        logging.error(f"Network/Server Error: {str(e)}")
         return {'success': False, 'error': str(e)}
