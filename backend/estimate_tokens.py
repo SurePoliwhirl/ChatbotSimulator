@@ -15,7 +15,7 @@ def get_encoding_for_model(model_type: str) -> tiktoken.Encoding:
     Returns:
         tiktoken.Encoding 객체
     """
-    # OpenAI와 Anthropic은 cl100k_base 인코딩 사용 (GPT-3.5, GPT-4, Claude)
+    # OpenAI와 Anthropic은 cl100k_base 인코딩 사용 (GPT-3.5, GPT-4, GPT-4o, GPT-5.1, GPT-5.2, Claude)
     # Google은 별도 인코딩이지만, 대략적인 추정을 위해 cl100k_base 사용
     try:
         return tiktoken.get_encoding("cl100k_base")

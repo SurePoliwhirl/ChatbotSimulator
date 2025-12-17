@@ -5,6 +5,7 @@ import { ConversationSet } from './ConversationSet';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Progress } from './ui/progress';
 import { toast } from 'sonner';
 
 interface Message {
@@ -57,14 +58,15 @@ export function ChatbotSimulator() {
     turnsPerBot: 3,
     numberOfSets: 2,
     exportFormat: 'text',
-    temperature1: 1.2,
-    temperature2: 1.2,
-    topP1: 0.9,
-    topP2: 0.9,
+    temperature1: 0.9,
+    temperature2: 0.9,
+    topP1: 0.95,
+    topP2: 0.95,
   });
   const [conversationSets, setConversationSets] = useState<ConversationSetData[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [promptGenerationProgress, setPromptGenerationProgress] = useState(0);
   const [initialNumberOfSets, setInitialNumberOfSets] = useState<number | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState<1 | 2 | null>(null);
   const [showAdvancedSettings1, setShowAdvancedSettings1] = useState(false);
@@ -89,8 +91,10 @@ export function ChatbotSimulator() {
   const [isEstimatingTokens, setIsEstimatingTokens] = useState(false);
 
   const [defaultModels, setDefaultModels] = useState([
-    { id: 'GPT-4', name: 'GPT-4', description: '가장 강력한 언어 모델' },
-    { id: 'GPT-3.5', name: 'GPT-3.5 Turbo', description: '빠르고 효율적인 모델' },
+    { id: 'GPT-5.2', name: 'GPT-5.2', description: 'OpenAI의 최신 고성능 모델' },
+    { id: 'GPT-5.1', name: 'GPT-5.1', description: 'OpenAI의 고성능 모델' },
+    { id: 'GPT-4o', name: 'GPT-4o', description: 'OpenAI의 멀티모달 모델' },
+    { id: 'GPT-4o-mini', name: 'GPT-4o-mini', description: 'GPT-4o의 경량 버전' },
     { id: 'Claude-3', name: 'Claude 3', description: 'Anthropic의 최신 모델' },
     { id: 'Gemini', name: 'Gemini Pro', description: 'Google의 멀티모달 AI' },
     { id: 'Llama-2', name: 'Llama 2', description: '오픈소스 대형 언어 모델' },
@@ -508,7 +512,18 @@ export function ChatbotSimulator() {
     if (apiKey1) {
       // 프롬프트 생성 시작
       setIsGeneratingPrompt(true);
+      setPromptGenerationProgress(0);
+      const startTime = Date.now();
+      const estimatedTime = 8; // 예상 소요 시간 (초)
       const loadingToastId = toast.info('대화 프롬프트 생성 중...', { duration: Infinity });
+      
+      // 진행률 업데이트를 위한 인터벌
+      const progressInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        // 예상 시간을 기준으로 진행률 계산 (최대 95%까지, 완료 시 100%)
+        const progress = Math.min(95, (elapsed / estimatedTime) * 100);
+        setPromptGenerationProgress(progress);
+      }, 100); // 100ms마다 업데이트
       
       try {
         const promptResponse = await fetch('http://localhost:5000/api/generate-prompt', {
@@ -525,23 +540,32 @@ export function ChatbotSimulator() {
         });
         
         const promptData = await promptResponse.json();
+        const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+        clearInterval(progressInterval);
+        setPromptGenerationProgress(100); // 완료 시 100%
         
         // 생성 중 toast 닫기
         toast.dismiss(loadingToastId);
         
         if (promptData.success && promptData.prompt) {
           customSystemPrompt = promptData.prompt;
-          toast.success('프롬프트 생성 완료', { duration: 2000 });
+          toast.success(`프롬프트 생성 완료 (${elapsedTime}초 소요)`, { duration: 2000 });
         } else {
           toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
         }
       } catch (error) {
         console.error('프롬프트 생성 오류:', error);
+        clearInterval(progressInterval);
+        setPromptGenerationProgress(0);
         // 생성 중 toast 닫기
         toast.dismiss(loadingToastId);
         toast.warning('프롬프트 생성 실패, 기본 프롬프트 사용', { duration: 2000 });
       } finally {
         setIsGeneratingPrompt(false);
+        // 완료 후 잠시 후 진행률 초기화
+        setTimeout(() => {
+          setPromptGenerationProgress(0);
+        }, 1000);
       }
     }
     

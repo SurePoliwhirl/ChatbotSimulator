@@ -18,9 +18,9 @@ class LLMRequestConfig:
     bot_number: int  # 1 or 2
     
     # 선택적 설정
-    max_tokens: int = 120
-    temperature: float = 1.2  # 다양성을 높이기 위해 증가 (0.0-2.0 범위)
-    top_p: float = 0.9  # Nucleus sampling (0.0-1.0 범위, 높을수록 더 다양한 토큰 고려)
+    max_tokens: int = 100  # 짧고 간결한 대화를 위해 토큰 수 제한
+    temperature: float = 0.9  # GPT-5.2 권장 범위 (0.7-1.0), 다양성과 일관성의 균형
+    top_p: float = 0.95  # GPT-5.2 권장 값, Nucleus sampling (0.0-1.0 범위)
     max_history_messages: int = 4  # 대화 히스토리에 포함할 최대 메시지 수
     
     def __post_init__(self):
