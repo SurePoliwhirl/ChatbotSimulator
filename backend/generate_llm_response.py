@@ -488,7 +488,7 @@ def generate_openai_response(config: LLMRequestConfig, custom_system_prompt: Opt
         })
         
         # 모델에 따라 적절한 파라미터 사용
-        model_name = 'gpt-3.5-turbo'  # 비용 절감을 위해 3.5 사용
+        model_name = 'gpt-4o'  # 최신 모델 사용
         is_new_model = 'gpt-5' in model_name or 'o1' in model_name.lower()
         
         data = {

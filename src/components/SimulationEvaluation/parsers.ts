@@ -1,20 +1,6 @@
 import { EvaluationItem } from './EvaluationRow';
 
-// MOCK GRADING GENERATOR (Since LLM API is separate)
-const generateMockGrading = (id: string, dialogueLog: any[]) => {
-    const mockGrade = Math.floor(Math.random() * 3) + 3; // 3 to 5
-    const mockExplanations = [
-        "Conversation flows logically. Personas are well maintained throughout the session.",
-        "Some minor topic drifts detected, but overall coherence is acceptable.",
-        "Excellent debate structure with clear arguments and counter-arguments.",
-        "Engagement level is high, though Bot 2 became slightly repetitive near the end.",
-        "Interaction feels a bit robotic in the middle, but concludes effectively."
-    ];
-    return {
-        grade: mockGrade as any,
-        explanation: mockExplanations[Math.floor(Math.random() * mockExplanations.length)]
-    };
-};
+
 
 export const parseJson = (content: string): EvaluationItem[] => {
     const data = JSON.parse(content);
@@ -27,16 +13,14 @@ export const parseJson = (content: string): EvaluationItem[] => {
             speaker: `Bot ${msg.bot}`,
             text: msg.text
         }));
-        const grading = generateMockGrading(id, dialogueLog);
-
         return {
             id,
             topic: data.config?.topic || 'Unknown Topic',
             persona1: data.config?.persona1 || 'Bot 1',
             persona2: data.config?.persona2 || 'Bot 2',
             dialogueLog,
-            grade: grading.grade,
-            explanation: grading.explanation,
+            grade: undefined,
+            explanation: '',
             status: 'pending'
         };
     });
@@ -70,15 +54,14 @@ export const parseCsv = (content: string): EvaluationItem[] => {
 
     return Object.entries(sets).map(([setNum, messages], index) => {
         const id = `csv-${Date.now()}-${index}`;
-        const grading = generateMockGrading(id, messages);
         return {
             id,
             topic: 'Imported CSV Conversation',
             persona1: 'Unknown',
             persona2: 'Unknown',
             dialogueLog: messages,
-            grade: grading.grade,
-            explanation: grading.explanation,
+            grade: undefined,
+            explanation: '',
             status: 'pending'
         };
     });
@@ -113,16 +96,14 @@ export const parseTxt = (content: string): EvaluationItem[] => {
         if (messages.length === 0) return null;
 
         const id = `txt-${Date.now()}-${index}`;
-        const grading = generateMockGrading(id, messages);
-
         return {
             id,
             topic,
             persona1,
             persona2,
             dialogueLog: messages,
-            grade: grading.grade,
-            explanation: grading.explanation,
+            grade: undefined,
+            explanation: '',
             status: 'pending'
         };
     }).filter(item => item !== null) as EvaluationItem[];

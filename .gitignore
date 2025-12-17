@@ -9,4 +9,7 @@ backend/__pycache__
 uv.lock
 **/uv.lock
 
-
+backend/venv
+backend/.venv
+backend/.env
+backend/*.log

@@ -1,9 +1,15 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+
+# .env 파일 로드
+load_dotenv()
 from validate_api_key import validate_api_key
 from generate_llm_response import generate_llm_response, generate_conversation_prompt
 from config import LLMRequestConfig, LLMResponse
 from estimate_tokens import estimate_simulation_tokens
+from evaluate_conversation import evaluate_conversation_log
 
 app = Flask(__name__)
 CORS(app)  # React 앱에서의 요청을 허용
@@ -271,6 +277,34 @@ def estimate_tokens():
             'success': False,
             'error': f'서버 오류: {str(e)}'
         }), 500
+
+@app.route('/api/evaluate-conversation', methods=['POST'])
+def evaluate_conversation():
+    """
+    Evaluates a conversation using an LLM.
+    Request body: {
+        "topic": "...",
+        "persona1": "...",
+        "persona2": "...",
+        "dialogue_log": [ { "speaker": "...", "text": "..." }, ... ]
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        result = evaluate_conversation_log(
+            topic=data.get('topic', ''),
+            persona1=data.get('persona1', ''),
+            persona2=data.get('persona2', ''),
+            dialogue_log=data.get('dialogue_log', [])
+        )
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Server Error: {str(e)}'}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
