@@ -40,13 +40,8 @@ export const evaluateConversation = async (item: EvaluationItem): Promise<Evalua
             const grade = Math.round(averageScore) as 1 | 2 | 3 | 4 | 5;
 
             // Format the explanation
-            let explanation = result.reason || "";
-            if (Object.keys(scores).length > 0) {
-                explanation += "\n\n[상세 점수]\n";
-                for (const [key, value] of Object.entries(scores)) {
-                    explanation += `- ${key}: ${value}점\n`;
-                }
-            }
+            const explanation = result.reason || "";
+
 
             return {
                 grade,
