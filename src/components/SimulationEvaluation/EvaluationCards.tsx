@@ -17,9 +17,16 @@ const getSpeakerInfo = (speaker: string) => {
 
 export function EvaluationCards({ items }: EvaluationCardsProps) {
     const [openItems, setOpenItems] = useState<string[]>([]);
+    const [expandedDetails, setExpandedDetails] = useState<string[]>([]);
 
     const toggleItem = (id: string) => {
         setOpenItems(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const toggleDetail = (id: string) => {
+        setExpandedDetails(prev =>
             prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
         );
     };
@@ -37,9 +44,9 @@ export function EvaluationCards({ items }: EvaluationCardsProps) {
                 </CardHeader>
                 <CardContent className="p-0 pb-0">
                     {items.length > 0 && (
-                        <div className="pl-2 pr-6 pt-16 pb-4">
-                            <Badge 
-                                variant="secondary" 
+                        <div className="pl-2 pr-6 pt-16 pb-4 mb-4">
+                            <Badge
+                                variant="secondary"
                                 className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-6 py-2 rounded-md text-xl font-semibold border-0"
                             >
                                 토론 주제 : {items[0].topic}
@@ -53,99 +60,116 @@ export function EvaluationCards({ items }: EvaluationCardsProps) {
                                 open={openItems.includes(item.id)}
                                 onOpenChange={() => toggleItem(item.id)}
                             >
-                                <CollapsibleTrigger className="w-full p-6 hover:bg-blue-50/60 transition-colors">
-                                    <div className="flex items-start gap-4">
-                                        <div className="flex-1">
-                                            {/* Log Number */}
-                                            <div className="mb-2">
-                                                <span className="text-xl font-semibold text-gray-700">로그 {index + 1} 분석 결과</span>
-                                            </div>
-                                            {/* Personas Section */}
-                                            <div className="mb-4 pb-3 border-b border-gray-200">
-                                                <div className="flex flex-col gap-1.5 text-xs text-gray-600 mt-2">
-                                                    <div className="flex items-center gap-2 py-1">
-                                                        <User className="w-3.5 h-3.5 text-blue-500" />
-                                                        <span className="font-medium text-gray-700">Bot 1:</span>
-                                                        <span className="text-gray-600">{item.persona1}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 py-1">
-                                                        <Bot className="w-3.5 h-3.5 text-purple-500" />
-                                                        <span className="font-medium text-gray-700">Bot 2:</span>
-                                                        <span className="text-gray-600">{item.persona2}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            {/* Dialogue Preview */}
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-xs font-medium text-gray-500">
-                                                    {openItems.includes(item.id) ? "접기" : "펼치기"}
-                                                </span>
-                                                <ChevronDown
-                                                    className={`w-4 h-4 text-gray-400 transition-transform ${
-                                                        openItems.includes(item.id) ? "rotate-180" : ""
+                                <CollapsibleTrigger className="w-full p-4 ml-2 transition-colors">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xl font-semibold text-gray-700">로그 {index + 1} 분석 결과</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-medium text-gray-500">
+                                                {openItems.includes(item.id) ? "접기" : "펼치기"}
+                                            </span>
+                                            <ChevronDown
+                                                className={`w-4 h-4 text-gray-400 transition-transform ${openItems.includes(item.id) ? "rotate-180" : ""
                                                     }`}
-                                                />
-                                            </div>
-                                            <div className="text-left">
-                                                {item.dialogueLog.slice(0, 1).map((msg, idx) => {
-                                                    const info = getSpeakerInfo(msg.speaker);
-                                                    return (
-                                                        <div key={idx} className="flex gap-3 text-sm">
-                                                            <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${info.color} shadow`}>
-                                                                {info.label}:
-                                                            </span>
-                                                            <p className="text-gray-700 flex-1 leading-relaxed">{msg.text}</p>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
+                                            />
                                         </div>
                                     </div>
                                 </CollapsibleTrigger>
 
                                 <CollapsibleContent>
-                                    <div className="px-6 pb-6 space-y-4">
-                                        {item.dialogueLog.slice(1).map((msg, idx) => {
-                                            const info = getSpeakerInfo(msg.speaker);
-                                            return (
-                                                <div key={idx} className="flex gap-3 text-sm">
-                                                    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${info.color} shadow h-fit`}>
-                                                        {info.label}:
-                                                    </span>
-                                                    <p className="text-gray-700 flex-1 leading-relaxed">{msg.text}</p>
+                                    <div className="px-6 pb-6 pt-2">
+                                        {/* Personas Section */}
+                                        <div className="mb-6 pb-3 border-b border-gray-200">
+                                            <div className="flex flex-col gap-1.5 text-xs text-gray-600 mt-2">
+                                                <div className="flex items-center gap-2 py-1">
+                                                    <User className="w-3.5 h-3.5 text-blue-500" />
+                                                    <span className="font-medium text-gray-700">Bot 1:</span>
+                                                    <span className="text-gray-600">{item.persona1}</span>
                                                 </div>
-                                            );
-                                        })}
+                                                <div className="flex items-center gap-2 py-1">
+                                                    <Bot className="w-3.5 h-3.5 text-purple-500" />
+                                                    <span className="font-medium text-gray-700">Bot 2:</span>
+                                                    <span className="text-gray-600">{item.persona2}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Analysis and Flow Score Section - Moved here */}
+                                        <div className="pt-4 border-t border-gray-100 mb-6">
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-3 gap-2">
+                                                <div className="flex items-center gap-4">
+                                                    <span className="text-xl text-gray-700 font-medium">Flow Score</span>
+                                                    <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 text-sm font-bold rounded-lg shadow-sm">
+                                                        {item.grade || 0} / 5
+                                                    </Badge>
+                                                </div>
+
+                                                {/* Detailed Scores Display */}
+                                                {item.scores && (
+                                                    <div className="flex items-center gap-2">
+                                                        {Object.entries(item.scores).map(([key, score]) => (
+                                                            <div key={key} className="flex items-center gap-1.5 px-3 py-1 bg-white rounded border border-gray-200 shadow-sm text-xs">
+                                                                <span className="text-sm font-semibold text-gray-600">{key} {score} </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex items-start gap-2 bg-emerald-50/50 p-3 rounded border border-emerald-100">
+                                                <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-base font-semibold text-gray-700">분석 결과</span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-800 leading-relaxed">
+                                                        {item.explanation}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <Collapsible
+                                            open={expandedDetails.includes(item.id)}
+                                            onOpenChange={() => toggleDetail(item.id)}
+                                        >
+                                            {/* Internal Expand/Collapse Trigger */}
+                                            <CollapsibleTrigger asChild>
+                                                <div className="flex items-center justify-between mb-4 cursor-pointer p-1 rounded transition-colors group">
+                                                    <span className="text-xs font-medium text-gray-500 group-hover:text-gray-700">
+                                                        {expandedDetails.includes(item.id) ? "접기" : "대화 내역 보기"}
+                                                    </span>
+                                                    <ChevronDown
+                                                        className={`w-4 h-4 text-gray-400 transition-transform ${expandedDetails.includes(item.id) ? "rotate-180" : ""
+                                                            } group-hover:text-gray-600`}
+                                                    />
+                                                </div>
+                                            </CollapsibleTrigger>
+
+                                            <CollapsibleContent>
+                                                {/* Full Dialogue Log */}
+                                                <div className="space-y-4 mb-6">
+                                                    {item.dialogueLog.map((msg, idx) => {
+                                                        const info = getSpeakerInfo(msg.speaker);
+                                                        return (
+                                                            <div key={idx} className="flex gap-3 text-sm">
+                                                                <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${info.color} shadow h-fit`}>
+                                                                    {info.label}:
+                                                                </span>
+                                                                <p className="text-gray-700 flex-1 leading-relaxed">{msg.text}</p>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </CollapsibleContent>
+                                        </Collapsible>
                                     </div>
                                 </CollapsibleContent>
-                                
-                                {/* Flow Score and Analysis */}
-                                <div className="px-6 pb-6 pt-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-xl text-gray-700 font-medium">Flow Score</span>
-                                        <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-black border-0 px-2.5 py-1 text-xs font-semibold rounded-md">
-                                            {item.grade} / 5
-                                        </Badge>
-                                    </div>
-                                    <div className="flex items-start gap-2 bg-emerald-50/50 p-3 rounded border border-emerald-100 mb-4">
-                                        <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-base font-semibold text-gray-700">분석 결과</span>
-                                            </div>
-                                            <p className="text-sm text-gray-800 leading-relaxed">
-                                                {item.explanation}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <hr className="border-t-[120px] border-gray-100 my-4" />
-                                </div>
                             </Collapsible>
                         ))}
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     );
 }
