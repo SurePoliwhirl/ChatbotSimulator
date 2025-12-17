@@ -4,41 +4,55 @@ import { ScoreDashboard } from './ScoreDashboard';
 import { EvaluationItem } from './EvaluationRow';
 import { EvaluationCards } from './EvaluationCards';
 import { parseJson, parseCsv, parseTxt } from './parsers';
+import { evaluateConversation } from './evaluationService';
 
 export function SimulationEvaluation() {
     const [items, setItems] = useState<EvaluationItem[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [progress, setProgress] = useState(0);
 
-    // Helper to simulate analysis delay for "Real-time" feel
-    const simulateAnalysis = (parsedItems: any[]) => {
+
+
+    // Real API integration
+    const runAnalysis = async (parsedItems: EvaluationItem[]) => {
         setIsAnalyzing(true);
         setProgress(0);
+
         // Initialize items with 'pending' status
-        const initialItems = parsedItems.map(item => ({ ...item, status: 'pending' }));
-        setItems(initialItems as EvaluationItem[]);
+        const initialItems = parsedItems.map(item => ({ ...item, status: 'pending' as const }));
+        setItems(initialItems);
 
         let completedCount = 0;
-        const interval = setInterval(() => {
+
+        // Process sequentially to be nice to the API rate limits (or parallel if prefer speed)
+        // Using Promise.all with map for parallel, but updating state one by one for progress bar
+
+        // Create a copy of items to update
+        const updatedItems = [...initialItems];
+
+        for (let i = 0; i < initialItems.length; i++) {
+            const item = initialItems[i];
+
+            // Call API
+            const result = await evaluateConversation(item);
+
+            // Update item
+            updatedItems[i] = {
+                ...item,
+                grade: result.grade,
+                scores: result.rawScore,
+                explanation: result.explanation,
+                status: 'completed'
+            };
+
+            // Update State & Progress
             completedCount++;
-            const currentProgress = (completedCount / parsedItems.length) * 100;
-
+            const currentProgress = (completedCount / initialItems.length) * 100;
             setProgress(currentProgress);
+            setItems([...updatedItems]); // spread to trigger re-render
+        }
 
-            setItems(prev => prev.map((item, idx) => {
-                if (idx < completedCount) {
-                    // In a real app, here we would merge the API result. 
-                    // For now, we reveal the pre-calculated (or mocked) grade.
-                    return { ...item, status: 'completed' };
-                }
-                return item;
-            }));
-
-            if (completedCount >= parsedItems.length) {
-                clearInterval(interval);
-                setIsAnalyzing(false);
-            }
-        }, 1500); // Slightly slower to feel like "Deep Analysis"
+        setIsAnalyzing(false);
     };
 
     const handleReset = () => {
@@ -70,7 +84,7 @@ export function SimulationEvaluation() {
                 }
 
                 if (parsedItems.length > 0) {
-                    simulateAnalysis(parsedItems);
+                    runAnalysis(parsedItems);
                 } else {
                     alert("No valid conversation sets found in the file.");
                 }

@@ -17,7 +17,8 @@ export interface EvaluationItem {
     persona1: string;
     persona2: string;
     dialogueLog: Array<{ speaker: string; text: string }>;
-    grade: 1 | 2 | 3 | 4 | 5;
+    grade: 1 | 2 | 3 | 4 | 5 | undefined;
+    scores?: { [key: string]: number };
     explanation: string;
     status: 'pending' | 'completed';
 }
@@ -100,8 +101,8 @@ export function EvaluationRow({ item }: EvaluationRowProps) {
                 <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Flow Score</span>
-                        <Badge variant="outline" className={`px-2.5 py-1 text-sm font-semibold rounded-md ${getBadgeColor(item.grade)}`}>
-                            {item.grade} / 5
+                        <Badge variant="outline" className={`px-2.5 py-1 text-sm font-semibold rounded-md ${getBadgeColor(item.grade || 0)}`}>
+                            {item.grade || '?'} / 5
                         </Badge>
                     </div>
 

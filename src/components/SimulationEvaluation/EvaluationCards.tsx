@@ -95,6 +95,27 @@ export function EvaluationCards({ items }: EvaluationCardsProps) {
                                             </div>
                                         </div>
 
+                                        {/* Analysis and Flow Score Section - Moved here */}
+                                        <div className="pt-4 border-t border-gray-100 mb-6">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xl text-gray-700 font-medium">Flow Score</span>
+                                                <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 text-sm font-bold rounded-lg shadow-sm">
+                                                    {item.grade || 0} / 5
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-start gap-2 bg-emerald-50/50 p-3 rounded border border-emerald-100">
+                                                <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-base font-semibold text-gray-700">분석 결과</span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-800 leading-relaxed">
+                                                        {item.explanation}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <Collapsible
                                             open={expandedDetails.includes(item.id)}
                                             onOpenChange={() => toggleDetail(item.id)}
@@ -126,27 +147,6 @@ export function EvaluationCards({ items }: EvaluationCardsProps) {
                                                             </div>
                                                         );
                                                     })}
-                                                </div>
-
-                                                {/* Flow Score and Analysis */}
-                                                <div className="pt-4 border-t border-gray-100">
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <span className="text-xl text-gray-700 font-medium">Flow Score</span>
-                                                        <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-black border-0 px-2.5 py-1 text-xs font-semibold rounded-md">
-                                                            {item.grade} / 5
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="flex items-start gap-2 bg-emerald-50/50 p-3 rounded border border-emerald-100 mb-4">
-                                                        <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                                                        <div>
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className="text-base font-semibold text-gray-700">분석 결과</span>
-                                                            </div>
-                                                            <p className="text-sm text-gray-800 leading-relaxed">
-                                                                {item.explanation}
-                                                            </p>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </CollapsibleContent>
                                         </Collapsible>
