@@ -128,7 +128,7 @@ def estimate_message_tokens(
     previous_messages_count: int,
     max_history_messages: int = 4,
     is_first_message: bool = False,
-    estimated_response_length: int = 80,  # 예상 응답 길이 (토큰)
+    estimated_response_length: int = 150,  # 예상 응답 길이 (토큰) - 여유있게 설정
     bot_number: int = 1,
     other_bot_number: int = 2,
     last_message_text: str = ""  # 마지막 메시지 텍스트 (히스토리 추정용)
@@ -163,7 +163,8 @@ def estimate_message_tokens(
     
     # 대화 히스토리 토큰 수 (평균 메시지 길이 추정)
     # 실제 응답이 max_tokens까지 나올 수 있으므로, 히스토리 메시지도 같은 길이로 추정
-    avg_message_tokens = estimated_response_length
+    # 여유있게 추정하기 위해 1.2배 적용
+    avg_message_tokens = int(estimated_response_length * 1.2)
     history_messages_count = min(previous_messages_count, max_history_messages)
     
     # 히스토리 메시지 포맷팅 (실제 사용되는 형식)
@@ -199,6 +200,11 @@ def estimate_message_tokens(
     # 출력 토큰 (예상 응답 길이)
     completion_tokens = estimated_response_length
     
+    # 여유분 추가 (15% 증가)
+    SAFETY_MARGIN = 1.15
+    prompt_tokens = int(prompt_tokens * SAFETY_MARGIN)
+    completion_tokens = int(completion_tokens * SAFETY_MARGIN)
+    
     return {
         'prompt_tokens': prompt_tokens,
         'completion_tokens': completion_tokens,
@@ -214,8 +220,8 @@ def estimate_simulation_tokens(
     persona2: str,
     turns_per_bot: int,
     number_of_sets: int,
-    max_tokens1: int = 120,
-    max_tokens2: int = 120,
+    max_tokens1: int = 180,
+    max_tokens2: int = 180,
     temperature1: float = 1.2,
     temperature2: float = 1.2,
     top_p1: float = 0.9,
