@@ -237,8 +237,8 @@ export function ConversationSet({
                 {isExpanded && hasTokens && (
                   <div className={`mt-0.5 rounded-b-2xl px-3 py-1.5 text-xs leading-relaxed opacity-0 animate-fadeInSlideDown ${
                     message.bot === 1
-                      ? 'bg-gray-50 text-gray-600'
-                      : 'bg-purple-400/20 text-purple-100'
+                      ? 'bg-gray-50 text-gray-900'
+                      : 'bg-purple-400/20 text-gray-900'
                   }`}>
                     <p>
                       총 토큰: <span className="font-medium">{message.tokens.total_tokens}</span>

@@ -2,6 +2,7 @@ import { Upload, FileText, CheckCircle2 } from 'lucide-react';
 import { useCallback, useState, useRef } from 'react';
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
+import { Card, CardContent } from "../ui/card";
 
 interface UploadSectionProps {
     onUpload: (files: FileList) => void;
@@ -60,7 +61,7 @@ export function UploadSection({ onUpload, onReset, isAnalyzing, progress, should
     }, []);
 
     return (
-        <div className="mb-8 flex justify-center">
+        <>
             {/* File input is always rendered but hidden */}
             <input 
                 ref={fileInputRef}
@@ -73,60 +74,60 @@ export function UploadSection({ onUpload, onReset, isAnalyzing, progress, should
             />
             
             {!isAnalyzing && progress === 0 ? (
-                <div
+                <Card 
+                    className="border-purple-200 bg-white/80 backdrop-blur-sm shadow-lg cursor-pointer"
                     onClick={handleLabelClick}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`
-                        relative flex flex-col items-center justify-center w-full max-w-2xl min-h-[200px] py-16 px-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer
-                        ${isDragOver
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 bg-white hover:border-purple-300 hover:bg-gray-50'
-                        }
-                    `}
                 >
-                    <div className="flex flex-col items-center justify-center pt-2">
+                    <CardContent className="p-6 flex flex-col items-center justify-center min-h-[200px]">
                         <div className={`p-4 rounded-full transition-colors ${isDragOver ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'}`}>
                             <Upload className="w-8 h-8" />
                         </div>
-                        <p className="text-sm font-semibold text-gray-900 text-center mb-1">
+                        <p className="text-sm font-semibold text-gray-900 text-center mt-4 mb-1">
                             Click to upload or drag and drop
                         </p>
-                        <p className="text-xs text-gray-500 text-center mb-6">
+                        <p className="text-xs text-gray-500 text-center">
                             JSON, CSV, or TXT file (Max 10MB)
                         </p>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             ) : (
-                <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
+                <Card className="border-purple-200 bg-white/80 backdrop-blur-sm shadow-lg">
+                    <CardContent className="p-6 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-100 rounded-full">
-                                {progress === 100 ? (
-                                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                ) : (
-                                    <FileText className="w-5 h-5 text-green-600 animate-pulse" />
-                                )}
-                            </div>
+                            {progress === 100 ? (
+                                <CheckCircle2 className="size-6 text-purple-600" />
+                            ) : (
+                                <FileText className="size-6 text-purple-600 animate-pulse" />
+                            )}
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-900">
-                                    {progress === 100 ? 'Analysis Complete' : 'Analyzing Conversation Logs...'}
+                                <h3 className="text-lg text-gray-800">
+                                    {progress === 100 ? '분석 완료 !' : '대화 내역 분석 중...'}
                                 </h3>
-                                <p className="text-xs text-gray-500">
-                                    {progress === 100 ? 'All items evaluated successfully ' : `Processing items (${Math.floor(progress)}%)`}
+                                <p className="text-sm text-gray-500">
+                                    {progress === 100 ? '모든 대화 내역에 대한 검증이 완료되었습니다.' : `(${Math.floor(progress)}%) 완료`}
                                 </p>
                             </div>
                         </div>
                         {progress === 100 && (
-                            <Button variant="outline" size="sm" onClick={handleUploadNewFile} className="text-xs">
+                            <Button
+                                variant="outline"
+                                className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                                onClick={handleUploadNewFile}
+                            >
                                 Upload New File
                             </Button>
                         )}
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                </div>
+                    </CardContent>
+                    {progress > 0 && progress < 100 && (
+                        <div className="px-6 pb-6">
+                            <Progress value={progress} className="h-2" />
+                        </div>
+                    )}
+                </Card>
             )}
-        </div>
+        </>
     );
 }

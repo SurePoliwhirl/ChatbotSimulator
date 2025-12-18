@@ -1190,7 +1190,7 @@ export function ChatbotSimulator() {
                 value={config.exportFormat}
                 onChange={(e) => setConfig({ ...config, exportFormat: e.target.value as 'excel' | 'text' | 'json' })}
                 disabled={isSimulating || isGeneratingPrompt}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="text">텍스트 (.txt)</option>
                 <option value="excel">엑셀 (.csv)</option>

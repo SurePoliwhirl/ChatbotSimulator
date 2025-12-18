@@ -193,8 +193,8 @@ export function SimulationEvaluation() {
                 <div className="space-y-6">
                     {/* 헤더 */}
                     <div className="space-y-2">
-                        <h1 className="text-3xl md:text-4xl text-gray-800">
-                            Simulation Evaluation
+                        <h1 className="text-2xl md:text-2xl font-semibold text-gray-800">
+                            시뮬레이터 결과 평가
                         </h1>
                         <p className="text-gray-600">
                             JSON, CSV, TXT files are supported. Upload your
@@ -213,32 +213,6 @@ export function SimulationEvaluation() {
                         shouldResetOnFileSelect={progress === 100}
                     />
 
-                    {/* 분석 완료 카드 - progress가 100%일 때만 표시 */}
-                    {progress === 100 && completedItems.length > 0 && (
-                        <Card className="border-purple-200 bg-white/80 backdrop-blur-sm shadow-lg">
-                            <CardContent className="p-6 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <CheckCircle2 className="size-6 text-purple-600" />
-                                    <div>
-                                        <h3 className="text-lg text-gray-800">
-                                            Analysis Complete
-                                        </h3>
-                                        <p className="text-sm text-gray-500">
-                                            All items evaluated successfully
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    className="border-purple-300 text-purple-600 hover:bg-purple-50"
-                                    onClick={handleReset}
-                                >
-                                    Upload New File
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    )}
-
                     {/* 메인 콘텐츠 그리드 - 결과가 있을 때만 표시 */}
                     {completedItems.length > 0 && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -247,41 +221,32 @@ export function SimulationEvaluation() {
                                 <CardHeader>
                                     <div className="flex items-center gap-2">
                                         <TrendingUp className="size-5 text-purple-600" />
-                                        <CardTitle className="text-gray-800">
-                                            Average Quality Score
+                                        <CardTitle className="text-gray-800 text-xl">
+                                            결과 한 눈에 보기
                                         </CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                     {/* 전체 점수 */}
-                                    <div className="text-center py-4">
+                                    <div className="text-center py-2">
                                         <div className="text-4xl text-purple-600">
                                             {averageScore} / 5.0
                                         </div>
                                     </div>
 
                                     {/* 메트릭 리스트 */}
-                                    <div className="space-y-3">
+                                    <div className="space-y-1">
                                         {metrics.map((metric, index) => (
                                             <div
                                                 key={index}
                                                 className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-purple-50 transition-colors"
                                             >
                                                 <span
-                                                    className={
-                                                        metric.highlight
-                                                            ? "text-purple-600"
-                                                            : "text-gray-700"
-                                                    }
-                                                >
+                                                    className={"text-gray-700"}>
                                                     {metric.name}
                                                 </span>
                                                 <span
-                                                    className={
-                                                        metric.highlight
-                                                            ? "text-purple-600"
-                                                            : "text-gray-800"
-                                                    }
+                                                    className={"text-gray-700"}
                                                 >
                                                     {metric.score.toFixed(1)}
                                                 </span>
@@ -293,9 +258,9 @@ export function SimulationEvaluation() {
                                     <div className="pt-4 border-t border-purple-100">
                                         <div className="flex items-center gap-2 mb-3 text-gray-600">
                                             <FileText className="size-4" />
-                                            <span>Conversations</span>
+                                            <span>대화별 점수</span>
                                         </div>
-                                        <div className="space-y-2">
+                                        <div className="space-y-1">
                                             {conversationSummary.map((conv) => (
                                                 <div
                                                     key={conv.id}
@@ -317,17 +282,16 @@ export function SimulationEvaluation() {
                             {/* 오른쪽: 차트 */}
                             <Card className="lg:col-span-2 border-purple-200 bg-white/80 backdrop-blur-sm shadow-lg">
                                 <CardHeader>
-                                    <div className="flex items-center gap-2">
-                                        <BarChart3 className="size-5 text-purple-600" />
-                                        <div>
-                                            <CardTitle className="text-gray-800">
-                                                Score Distribution by Metric
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <BarChart3 className="size-5 text-purple-600" />
+                                            <CardTitle className="text-gray-800 text-xl">
+                                                평가 지표에 따른 점수 분포도
                                             </CardTitle>
-                                            <CardDescription className="text-gray-600">
-                                                Analysis of Context, Topic, and Persona
-                                                scores across conversations
-                                            </CardDescription>
                                         </div>
+                                        <CardDescription className="text-gray-600">
+                                            각 대화의 Context, Topic, Persona를 평가 지표로 분석합니다.
+                                        </CardDescription>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
@@ -397,83 +361,81 @@ export function SimulationEvaluation() {
 
                 {/* ===== Scenario Conversation Log 섹션 ===== */}
                 {completedItems.length > 0 && (
-                    <div className="space-y-6 pt-8 border-t-4 border-purple-200">
+                    <div className="space-y-6 pt-8 border-t-2 border-purple-200">
                         {/* 헤더 */}
                         <div className="flex items-center gap-3">
                             <MessageSquare className="size-8 text-purple-600" />
-                            <h1 className="text-3xl md:text-4xl text-gray-800">
-                                Scenario Conversation Log
+                            <h1 className="text-3xl md:text-2xl text-gray-800">
+                                대화별 상세 분석 결과
                             </h1>
                         </div>
 
-                        {/* 토론 주제 카드 */}
-                        {completedItems.length > 0 && (
-                            <Card className="border-purple-200 bg-white/80 backdrop-blur-sm shadow-lg">
-                                <CardContent className="p-5">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-gray-700">
+                        {/* 토론 주제와 각 로그 분석 결과를 하나의 Card로 묶기 */}
+                        <Card className="border-purple-200 bg-white/80 backdrop-blur-sm shadow-lg">
+                            <CardContent className="p-6 space-y-6">
+                                {/* 토론 주제 */}
+                                {completedItems.length > 0 && (
+                                    <div className="ml-2 flex items-center gap-2 pb-4 border-b border-purple-100">
+                                        <span className="text-gray-700 font-semibold text-lg">
                                             토론 주제 :
                                         </span>
                                         <Badge
                                             variant="secondary"
-                                            className="bg-purple-100 text-purple-700 hover:bg-purple-200"
+                                            className="text-sm bg-purple-100 text-purple-700 hover:bg-purple-200"
                                         >
                                             {completedItems[0].topic}
                                         </Badge>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        )}
+                                )}
 
-                        {/* 각 로그 분석 결과 */}
-                        {completedItems.map((item, index) => {
-                            const isLogExpanded = expandedLogs.has(item.id);
-                            const isConversationExpanded = expandedConversations.has(item.id);
+                                {/* 각 로그 분석 결과 */}
+                                <div className="space-y-4">
+                                    {completedItems.map((item, index) => {
+                                        const isLogExpanded = expandedLogs.has(item.id);
+                                        const isConversationExpanded = expandedConversations.has(item.id);
 
-                            return (
-                                <Card key={item.id} className="border-purple-200 bg-white/80 backdrop-blur-sm shadow-lg">
-                                    <CardHeader
-                                        className="cursor-pointer hover:bg-purple-50/50 transition-colors rounded-t-lg"
-                                        onClick={() => toggleLog(item.id)}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="text-gray-800">
-                                                로그 {index + 1} 분석 결과
-                                            </CardTitle>
-                                            <button className="text-purple-600">
-                                                {isLogExpanded ? (
-                                                    <ChevronUp className="size-5" />
-                                                ) : (
-                                                    <ChevronDown className="size-5" />
-                                                )}
-                                            </button>
-                                        </div>
-                                    </CardHeader>
+                                        return (
+                                            <div key={item.id} className="border border-purple-100 rounded-lg overflow-hidden">
+                                                <div
+                                                    className="cursor-pointer hover:bg-purple-50/50 transition-colors p-4 flex items-center justify-between"
+                                                    onClick={() => toggleLog(item.id)}
+                                                >
+                                                    <h3 className="text-lg font-semibold text-gray-800">
+                                                        로그 {index + 1} 분석 결과
+                                                    </h3>
+                                                    <button className="text-purple-600">
+                                                        {isLogExpanded ? (
+                                                            <ChevronUp className="size-5" />
+                                                        ) : (
+                                                            <ChevronDown className="size-5" />
+                                                        )}
+                                                    </button>
+                                                </div>
 
-                                    {isLogExpanded && (
-                                        <CardContent className="space-y-6">
+                                                {isLogExpanded && (
+                                                    <div className="p-4 pt-0 space-y-6">
                                             {/* Bot 정보 */}
                                             <div className="space-y-4">
-                                                <div className="flex items-start gap-3 p-3 rounded-lg bg-purple-50/50">
-                                                    <User className="size-5 text-purple-600 mt-0.5" />
-                                                    <div className="flex-1">
-                                                        <div className="text-sm text-gray-600 mb-1">
+                                                <div className="p-3 rounded-lg bg-purple-50/50">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Bot className="size-5 text-purple-600" />
+                                                        <div className="text-sm text-gray-600">
                                                             Bot 1:
                                                         </div>
-                                                        <div className="text-gray-800">
-                                                            {item.persona1}
-                                                        </div>
+                                                    </div>
+                                                    <div className="text-gray-800">
+                                                        {item.persona1}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50/50">
-                                                    <Bot className="size-5 text-blue-600 mt-0.5" />
-                                                    <div className="flex-1">
-                                                        <div className="text-sm text-gray-600 mb-1">
+                                                <div className="p-3 rounded-lg bg-blue-50/50">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Bot className="size-5 text-blue-600" />
+                                                        <div className="text-sm text-gray-600">
                                                             Bot 2:
                                                         </div>
-                                                        <div className="text-gray-800">
-                                                            {item.persona2}
-                                                        </div>
+                                                    </div>
+                                                    <div className="text-gray-800">
+                                                        {item.persona2}
                                                     </div>
                                                 </div>
                                             </div>
@@ -481,10 +443,10 @@ export function SimulationEvaluation() {
                                             {/* Flow Score */}
                                             <div className="pt-4 border-t border-purple-100 space-y-4">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-lg text-gray-700">
+                                                    <span className="text-base font-semibold text-gray-700">
                                                         Flow Score
                                                     </span>
-                                                    <span className="text-2xl text-purple-600">
+                                                    <span className="text-lg font-semibold text-purple-600">
                                                         {item.grade || 0} / 5
                                                     </span>
                                                 </div>
@@ -494,10 +456,10 @@ export function SimulationEvaluation() {
                                                             key={key}
                                                             className={
                                                                 key === "맥락 유지"
-                                                                    ? "bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5"
+                                                                    ? "bg-blue-500 hover:bg-blue-600 text-white px-3.5 py-1.5"
                                                                     : key === "주제 적합성"
-                                                                    ? "bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5"
-                                                                    : "bg-purple-500 hover:bg-purple-600 text-white px-4 py-1.5"
+                                                                    ? "bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-1.5"
+                                                                    : "bg-purple-500 hover:bg-purple-600 text-white px-3.5 py-1.5"
                                                             }
                                                         >
                                                             {key} {score}
@@ -508,19 +470,19 @@ export function SimulationEvaluation() {
 
                                             {/* 분석 결과 */}
                                             <div className="pt-4 border-t border-purple-100 space-y-3">
-                                                <h4 className="text-gray-800">분석 결과</h4>
+                                                <h4 className="text-gray-800 text-base font-semibold">분석 결과</h4>
                                                 <p className="text-gray-700 leading-relaxed">
                                                     {item.explanation}
                                                 </p>
                                             </div>
 
                                             {/* 대화 내용 자세히 보기 토글 */}
-                                            <div className="pt-4 border-t border-purple-100">
+                                            <div className="pt-4">
                                                 <button
                                                     onClick={() => toggleConversation(item.id)}
-                                                    className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-purple-50/50 transition-colors"
+                                                    className="w-full flex items-center justify-between pl-0 pr-3 py-3 rounded-lg hover:bg-purple-50/50 transition-colors"
                                                 >
-                                                    <span className="text-gray-800">
+                                                    <span className="text-gray-800 text-base font-semibold">
                                                         대화 내용 자세히 보기
                                                     </span>
                                                     {isConversationExpanded ? (
@@ -573,11 +535,14 @@ export function SimulationEvaluation() {
                                                     </div>
                                                 )}
                                             </div>
-                                        </CardContent>
-                                    )}
-                                </Card>
-                            );
-                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 )}
             </div>
