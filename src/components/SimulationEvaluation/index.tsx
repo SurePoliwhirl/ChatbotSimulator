@@ -528,44 +528,70 @@ export function SimulationEvaluation() {
 
                                                 {isConversationExpanded && (
                                                     <div className="mt-4 space-y-4">
-                                                        {item.dialogueLog.map((conv, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                className={`flex items-start gap-4 p-4 rounded-lg ${
-                                                                    conv.speaker.includes('1')
-                                                                        ? "bg-purple-50/70"
-                                                                        : "bg-blue-50/70"
-                                                                }`}
-                                                            >
+                                                        {item.dialogueLog.map((conv, idx) => {
+                                                            // Check if this is a token statistics message
+                                                            const isTokenStats = conv.text.includes('[토큰 통계]') || conv.text.includes('총 사용 토큰 수');
+                                                            
+                                                            if (isTokenStats) {
+                                                                return (
+                                                                    <div
+                                                                        key={idx}
+                                                                        className="flex items-start gap-4 p-4 rounded-lg bg-amber-50/80 border-2 border-amber-200"
+                                                                    >
+                                                                        <div className="flex-shrink-0 size-8 rounded-full flex items-center justify-center bg-amber-500">
+                                                                            <span className="text-white text-lg">📊</span>
+                                                                        </div>
+                                                                        <div className="flex-1 space-y-1">
+                                                                            <div className="text-sm font-semibold text-amber-800">
+                                                                                토큰 통계
+                                                                            </div>
+                                                                            <div className="text-amber-900 leading-relaxed font-mono text-sm">
+                                                                                {conv.text.replace('[토큰 통계]', '').trim()}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            
+                                                            return (
                                                                 <div
-                                                                    className={`flex-shrink-0 size-8 rounded-full flex items-center justify-center ${
+                                                                    key={idx}
+                                                                    className={`flex items-start gap-4 p-4 rounded-lg ${
                                                                         conv.speaker.includes('1')
-                                                                            ? "bg-purple-500"
-                                                                            : "bg-blue-500"
+                                                                            ? "bg-purple-50/70"
+                                                                            : "bg-blue-50/70"
                                                                     }`}
                                                                 >
-                                                                    {conv.speaker.includes('1') ? (
-                                                                        <User className="size-5 text-white" />
-                                                                    ) : (
-                                                                        <Bot className="size-5 text-white" />
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex-1 space-y-1">
                                                                     <div
-                                                                        className={`text-sm ${
+                                                                        className={`flex-shrink-0 size-8 rounded-full flex items-center justify-center ${
                                                                             conv.speaker.includes('1')
-                                                                                ? "text-purple-700"
-                                                                                : "text-blue-700"
+                                                                                ? "bg-purple-500"
+                                                                                : "bg-blue-500"
                                                                         }`}
                                                                     >
-                                                                        {conv.speaker}:
+                                                                        {conv.speaker.includes('1') ? (
+                                                                            <User className="size-5 text-white" />
+                                                                        ) : (
+                                                                            <Bot className="size-5 text-white" />
+                                                                        )}
                                                                     </div>
-                                                                    <div className="text-gray-800 leading-relaxed">
-                                                                        {conv.text}
+                                                                    <div className="flex-1 space-y-1">
+                                                                        <div
+                                                                            className={`text-sm ${
+                                                                                conv.speaker.includes('1')
+                                                                                    ? "text-purple-700"
+                                                                                    : "text-blue-700"
+                                                                            }`}
+                                                                        >
+                                                                            {conv.speaker}:
+                                                                        </div>
+                                                                        <div className="text-gray-800 leading-relaxed">
+                                                                            {conv.text}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </div>
                                                 )}
                                             </div>
