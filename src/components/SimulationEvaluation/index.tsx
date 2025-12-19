@@ -167,10 +167,10 @@ export function SimulationEvaluation() {
 
     const completedItems = items.filter(i => i.status === 'completed');
 
-    // Calculate average score
-    const averageScore = completedItems.length > 0
-        ? (completedItems.reduce((acc, curr) => acc + (curr.grade || 0), 0) / completedItems.length).toFixed(1)
-        : "0.0";
+    // Helper function to truncate to one decimal place (floor at second decimal)
+    const truncateToOneDecimal = (num: number): number => {
+        return Math.floor(num * 10) / 10;
+    };
 
     // Calculate metric averages
     const getMetricAverage = (key: string) => {
@@ -179,8 +179,35 @@ export function SimulationEvaluation() {
             const score = curr.scores?.[key] || 0;
             return acc + score;
         }, 0);
-        return total / completedItems.length;
+        const average = total / completedItems.length;
+        return truncateToOneDecimal(average);
     };
+
+    // Calculate overall average score from all metrics (not from grade)
+    const calculateOverallAverage = () => {
+        if (!completedItems.length) return 0.0;
+        
+        // Get all metric scores from all items
+        let totalScore = 0;
+        let totalCount = 0;
+        
+        completedItems.forEach(item => {
+            if (item.scores) {
+                const scoreValues = Object.values(item.scores) as number[];
+                scoreValues.forEach(score => {
+                    totalScore += score;
+                    totalCount += 1;
+                });
+            }
+        });
+        
+        const average = totalCount > 0 ? totalScore / totalCount : 0.0;
+        return truncateToOneDecimal(average);
+    };
+
+    const averageScore = completedItems.length > 0
+        ? calculateOverallAverage().toFixed(1)
+        : "0.0";
 
     const metrics = [
         { name: "맥락 유지", score: getMetricAverage("맥락 유지") },
@@ -196,11 +223,23 @@ export function SimulationEvaluation() {
         "페르소나 일관성": item.scores?.["페르소나 일관성"] || 0,
     }));
 
-    const conversationSummary = completedItems.map((item, index) => ({
-        id: item.id,
-        name: `Log ${index + 1}`,
-        score: item.grade || 0,
-    }));
+    const conversationSummary = completedItems.map((item, index) => {
+        // Calculate average score from metrics for each item
+        let itemAverage = 0;
+        if (item.scores) {
+            const scoreValues = Object.values(item.scores) as number[];
+            if (scoreValues.length > 0) {
+                const sum = scoreValues.reduce((a, b) => a + b, 0);
+                itemAverage = truncateToOneDecimal(sum / scoreValues.length);
+            }
+        }
+        
+        return {
+            id: item.id,
+            name: `Log ${index + 1}`,
+            score: itemAverage,
+        };
+    });
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-6 md:p-8">
@@ -282,7 +321,7 @@ export function SimulationEvaluation() {
                                                 <span
                                                     className={"text-gray-700"}
                                                 >
-                                                    {metric.score.toFixed(1)}
+                                                    {truncateToOneDecimal(metric.score).toFixed(1)}
                                                 </span>
                                             </div>
                                         ))}
@@ -304,7 +343,7 @@ export function SimulationEvaluation() {
                                                         {conv.name}
                                                     </span>
                                                     <span className="text-gray-800">
-                                                        {conv.score.toFixed(1)}
+                                                        {truncateToOneDecimal(conv.score).toFixed(1)}
                                                     </span>
                                                 </div>
                                             ))}
@@ -481,7 +520,18 @@ export function SimulationEvaluation() {
                                                         Flow Score
                                                     </span>
                                                     <span className="text-lg font-semibold text-purple-600">
-                                                        {item.grade || 0} / 5
+                                                        {(() => {
+                                                            // Calculate average from metrics
+                                                            if (item.scores) {
+                                                                const scoreValues = Object.values(item.scores) as number[];
+                                                                if (scoreValues.length > 0) {
+                                                                    const sum = scoreValues.reduce((a, b) => a + b, 0);
+                                                                    const avg = truncateToOneDecimal(sum / scoreValues.length);
+                                                                    return `${avg.toFixed(1)} / 5`;
+                                                                }
+                                                            }
+                                                            return "0.0 / 5";
+                                                        })()}
                                                     </span>
                                                 </div>
                                                 <div className="flex flex-wrap gap-3">
