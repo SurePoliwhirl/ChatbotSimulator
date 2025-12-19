@@ -32,7 +32,9 @@ import {
   ChevronUp,
   User,
   Bot,
+  AlertCircle,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 export function SimulationEvaluation() {
     const [items, setItems] = useState<EvaluationItem[]>([]);
@@ -40,11 +42,14 @@ export function SimulationEvaluation() {
     const [progress, setProgress] = useState(0);
     const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
     const [expandedConversations, setExpandedConversations] = useState<Set<string>>(new Set());
+    const [provider, setProvider] = useState<'openai' | 'anthropic'>('openai');
+    const [authError, setAuthError] = useState<string | null>(null);
 
     // Real API integration
     const runAnalysis = async (parsedItems: EvaluationItem[]) => {
         setIsAnalyzing(true);
         setProgress(0);
+        setAuthError(null); // Reset auth error
 
         // Initialize items with 'pending' status
         const initialItems = parsedItems.map(item => ({ ...item, status: 'pending' as const }));
@@ -59,7 +64,17 @@ export function SimulationEvaluation() {
             const item = initialItems[i];
 
             // Call API
-            const result = await evaluateConversation(item);
+            const result = await evaluateConversation(item, provider);
+
+            // Check for any error (API error, auth error, network error, etc.)
+            if (result.isError || result.isAuthError) {
+                setAuthError(result.explanation);
+                setIsAnalyzing(false);
+                setProgress(0); // Reset progress
+                // Clear items to show error message
+                setItems([]);
+                return; // Stop analysis immediately
+            }
 
             // Update item
             updatedItems[i] = {
@@ -86,6 +101,7 @@ export function SimulationEvaluation() {
         setProgress(0);
         setExpandedLogs(new Set());
         setExpandedConversations(new Set());
+        setAuthError(null);
     };
 
     const handleUpload = (files: FileList) => {
@@ -204,6 +220,22 @@ export function SimulationEvaluation() {
                         </p>
                     </div>
 
+                    {/* API 키 오류 알림 */}
+                    {authError && (
+                        <Alert variant="destructive" className="mb-4">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>API 키 오류</AlertTitle>
+                            <AlertDescription>
+                                {authError}
+                                <br />
+                                <span className="text-sm mt-2 block">
+                                    .env 파일에 올바른 API 키를 설정했는지 확인해주세요.
+                                    {provider === 'openai' ? ' (OPENAI_API_KEY)' : ' (ANTHROPIC_API_KEY)'}
+                                </span>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     {/* 파일 업로드 섹션 */}
                     <UploadSection
                         onUpload={handleUpload}
@@ -211,6 +243,8 @@ export function SimulationEvaluation() {
                         isAnalyzing={isAnalyzing || (progress > 0 && progress < 100)}
                         progress={progress}
                         shouldResetOnFileSelect={progress === 100}
+                        provider={provider}
+                        onProviderChange={setProvider}
                     />
 
                     {/* 메인 콘텐츠 그리드 - 결과가 있을 때만 표시 */}

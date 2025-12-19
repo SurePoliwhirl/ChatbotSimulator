@@ -3,6 +3,14 @@ import { useCallback, useState, useRef } from 'react';
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { Card, CardContent } from "../ui/card";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "../ui/select";
+import { Label } from "../ui/label";
 
 interface UploadSectionProps {
     onUpload: (files: FileList) => void;
@@ -10,9 +18,11 @@ interface UploadSectionProps {
     isAnalyzing: boolean;
     progress: number;
     shouldResetOnFileSelect?: boolean;
+    provider: 'openai' | 'anthropic';
+    onProviderChange: (provider: 'openai' | 'anthropic') => void;
 }
 
-export function UploadSection({ onUpload, onReset, isAnalyzing, progress, shouldResetOnFileSelect = false }: UploadSectionProps) {
+export function UploadSection({ onUpload, onReset, isAnalyzing, progress, shouldResetOnFileSelect = false, provider, onProviderChange }: UploadSectionProps) {
     const [isDragOver, setIsDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +72,26 @@ export function UploadSection({ onUpload, onReset, isAnalyzing, progress, should
 
     return (
         <>
+            {/* Provider Selection */}
+            <div className="mb-4 space-y-2">
+                <Label htmlFor="provider-select" className="text-base font-semibold text-gray-700">
+                    평가용 AI 선택
+                </Label>
+                <Select
+                    value={provider}
+                    onValueChange={(value) => onProviderChange(value as 'openai' | 'anthropic')}
+                    disabled={isAnalyzing || (progress > 0 && progress < 100)}
+                >
+                    <SelectTrigger id="provider-select" className="w-full max-w-xs">
+                        <SelectValue placeholder="평가용 AI 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
+                        <SelectItem value="anthropic">Anthropic (Claude Sonnet 4.5)</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
             {/* File input is always rendered but hidden */}
             <input 
                 ref={fileInputRef}

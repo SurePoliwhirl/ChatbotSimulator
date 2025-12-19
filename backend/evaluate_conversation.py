@@ -3,24 +3,63 @@ import json
 import requests
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
 from config import LLMResponse
 
-# Configure logging
-logging.basicConfig(
-    filename='evaluation_logs.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    encoding='utf-8' # Ensure utf-8 for Korean characters
-)
+# Load environment variables from .env file
+load_dotenv()
 
-def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
+# Configure separate loggers for each provider
+def get_logger(provider):
+    """Get logger for specific provider"""
+    logger = logging.getLogger(f'evaluation_{provider}')
+    logger.setLevel(logging.INFO)
+    
+    # Remove existing handlers to avoid duplicates
+    logger.handlers = []
+    
+    # Create file handler
+    log_filename = f'evaluation_logs_{provider}.log'
+    handler = logging.FileHandler(log_filename, encoding='utf-8')
+    handler.setLevel(logging.INFO)
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    
+    # Add handler to logger
+    logger.addHandler(handler)
+    
+    return logger
+
+def evaluate_conversation_log(topic, persona1, persona2, dialogue_log, provider='openai'):
     """
-    Evaluates a conversation log using OpenAI API with a specific prompt.
+    Evaluates a conversation log using LLM API (OpenAI or Anthropic) with a specific prompt.
     Returns a dict with 'reason' (str) and 'score' (dict of int).
+    
+    Args:
+        topic: Conversation topic
+        persona1: First persona
+        persona2: Second persona
+        dialogue_log: List of dialogue messages
+        provider: 'openai' or 'anthropic' (default: 'openai')
     """
-    api_key = os.environ.get('OPENAI_API_KEY')
-    if not api_key:
-        error_msg = 'Server configuration error: OPENAI_API_KEY not found.'
+    provider = provider.lower()
+    
+    if provider == 'openai':
+        api_key = os.environ.get('OPENAI_API_KEY')
+        if not api_key:
+            error_msg = 'Server configuration error: OPENAI_API_KEY not found.'
+            logging.error(error_msg)
+            return {'success': False, 'error': error_msg}
+    elif provider == 'anthropic':
+        api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not api_key:
+            error_msg = 'Server configuration error: ANTHROPIC_API_KEY not found.'
+            logging.error(error_msg)
+            return {'success': False, 'error': error_msg}
+    else:
+        error_msg = f'Unsupported provider: {provider}. Supported providers: openai, anthropic'
         logging.error(error_msg)
         return {'success': False, 'error': error_msg}
 
@@ -99,9 +138,9 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
 
 ### 9. 출력 예시
 
-반드시 아래 형식을 그대로 따르십시오.
+반드시 아래 형식을 그대로 따르십시오. **중요: JSON 형식만 출력하고, 설명이나 추가 텍스트는 포함하지 마십시오.**
 
-```JSON
+```json
 {{
     "reason": "페르소나 A는 ... 했으나, B의 발화 '...'에서 A의 설정을 언급하며 역할 혼동이 발생했습니다. 따라서 페르소나 일관성에 심각한 문제가 있습니다.",
     "score": {{
@@ -111,11 +150,33 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
     }}
 }}
 ```
+
+**출력 규칙:**
+- 반드시 유효한 JSON 형식으로만 출력하세요
+- 마크다운 코드 블록(```) 없이 순수 JSON만 출력하세요
+- JSON 외의 설명, 주석, 추가 텍스트는 절대 포함하지 마세요
+- reason은 문자열(string)이어야 합니다
+- score의 각 값은 1~5 범위의 정수(integer)여야 합니다
 """
 
-    # Log the generated prompt
-    logging.info(f"[{datetime.now()}] Generated Prompt:\n{prompt}\n{'-'*50}")
+    try:
+        if provider == 'openai':
+            return _evaluate_with_openai(api_key, prompt)
+        elif provider == 'anthropic':
+            return _evaluate_with_anthropic(api_key, prompt)
+        else:
+            return {'success': False, 'error': f'Unsupported provider: {provider}'}
+    except Exception as e:
+        # Use appropriate logger based on provider
+        logger = get_logger(provider)
+        logger.error(f"[{datetime.now()}] Network/Server Error: {str(e)}")
+        return {'success': False, 'error': str(e)}
 
+
+def _evaluate_with_openai(api_key, prompt):
+    """Evaluate conversation using OpenAI API"""
+    logger = get_logger('openai')
+    
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json'
@@ -137,32 +198,175 @@ def evaluate_conversation_log(topic, persona1, persona2, dialogue_log):
         'response_format': { "type": "json_object" } # Force JSON output
     }
 
-    try:
-        response = requests.post(
-            'https://api.openai.com/v1/chat/completions',
-            headers=headers,
-            json=data,
-            timeout=60
-        )
+    logger.info(f"[{datetime.now()}] OpenAI API Request - Model: {data['model']}, Prompt length: {len(prompt)}")
+    
+    response = requests.post(
+        'https://api.openai.com/v1/chat/completions',
+        headers=headers,
+        json=data,
+        timeout=60
+    )
+    
+    logger.info(f"[{datetime.now()}] OpenAI API Response Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        result = response.json()
+        content = result['choices'][0]['message']['content']
         
-        if response.status_code == 200:
-            result = response.json()
-            content = result['choices'][0]['message']['content']
+        # Log the raw LLM response
+        logger.info(f"[{datetime.now()}] Raw OpenAI Response:\n{content}\n{'='*50}")
+        
+        # Parse JSON content
+        try:
+            parsed_content = json.loads(content)
+            logger.info(f"[{datetime.now()}] Evaluation completed successfully")
+            return {'success': True, 'result': parsed_content}
+        except json.JSONDecodeError as e:
+            logger.error(f"[{datetime.now()}] JSON Parse Error: {str(e)}\nContent: {content}")
+            return {'success': False, 'error': 'Failed to parse JSON response from LLM', 'raw_content': content}
+    elif response.status_code == 401:
+        # API key authentication error
+        error_msg = '올바르지 않은 API 키입니다. OpenAI API 키를 확인해주세요.'
+        logger.error(f"[{datetime.now()}] OpenAI API Authentication Error: {response.text}")
+        return {'success': False, 'error': error_msg, 'auth_error': True}
+    else:
+        # Parse error response to get meaningful error message
+        try:
+            error_data = response.json()
+            error_detail = error_data.get('error', {})
+            if isinstance(error_detail, dict):
+                error_type = error_detail.get('type', 'unknown_error')
+                error_message = error_detail.get('message', '알 수 없는 오류')
+                
+                # Handle specific error types
+                if error_type == 'invalid_request_error':
+                    if 'model' in error_message.lower():
+                        error_msg = f'모델을 찾을 수 없습니다: {error_message}. OpenAI API에서 사용 가능한 모델을 확인해주세요.'
+                    else:
+                        error_msg = f'잘못된 요청: {error_message}'
+                elif error_type == 'rate_limit_error':
+                    error_msg = f'API 요청 한도 초과: {error_message}. 잠시 후 다시 시도해주세요.'
+                else:
+                    error_msg = f'OpenAI API 오류 ({error_type}): {error_message}'
+            else:
+                error_msg = f'OpenAI API 오류: {str(error_detail)}'
+        except:
+            error_text = response.text
+            error_msg = f'OpenAI API 오류: {error_text}'
+        
+        logger.error(f"[{datetime.now()}] OpenAI API Error: {response.text}")
+        return {'success': False, 'error': error_msg}
+
+
+def _evaluate_with_anthropic(api_key, prompt):
+    """Evaluate conversation using Anthropic API"""
+    logger = get_logger('anthropic')
+    
+    headers = {
+        'x-api-key': api_key,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json'
+    }
+
+    # Anthropic uses a different message format
+    system_message = '당신은 대화형 AI 전문 분석가입니다. 주어진 대화를 분석하고 반드시 유효한 JSON 형식으로만 평가 결과를 출력하세요. JSON 외의 설명, 주석, 마크다운 코드 블록은 포함하지 마세요.'
+    
+    data = {
+        'model': 'claude-sonnet-4-5', # Using Claude Sonnet 4.5 as per official documentation
+        'max_tokens': 4096,
+        'system': system_message,
+        'messages': [
+            {
+                'role': 'user',
+                'content': prompt
+            }
+        ],
+        'temperature': 0.2 # Low temperature for consistent evaluation
+    }
+
+    logger.info(f"[{datetime.now()}] Anthropic API Request - Model: {data['model']}, Prompt length: {len(prompt)}")
+    
+    response = requests.post(
+        'https://api.anthropic.com/v1/messages',
+        headers=headers,
+        json=data,
+        timeout=60
+    )
+    
+    logger.info(f"[{datetime.now()}] Anthropic API Response Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        result = response.json()
+        
+        # Anthropic returns content as a list of content blocks
+        content_blocks = result.get('content', [])
+        
+        if content_blocks and len(content_blocks) > 0:
+            first_block = content_blocks[0]
             
-            # Log the raw LLM response
-            logging.info(f"[{datetime.now()}] Raw LLM Response:\n{content}\n{'='*50}")
-            
-            # Parse JSON content
-            try:
-                parsed_content = json.loads(content)
-                return {'success': True, 'result': parsed_content}
-            except json.JSONDecodeError as e:
-                logging.error(f"JSON Parse Error: {str(e)}\nContent: {content}")
-                return {'success': False, 'error': 'Failed to parse JSON response from LLM', 'raw_content': content}
+            if isinstance(first_block, dict):
+                content = first_block.get('text', '')
+            else:
+                content = str(first_block)
         else:
-            logging.error(f"OpenAI API Error: {response.text}")
-            return {'success': False, 'error': f"OpenAI API Error: {response.text}"}
+            content = ''
+        
+        # Log the raw LLM response
+        logger.info(f"[{datetime.now()}] Raw Anthropic Response Content:\n{content}\n{'='*50}")
+        
+        # Parse JSON content
+        try:
+            # Try to find JSON in the content (might be wrapped in markdown code blocks)
+            json_content = content.strip()
             
-    except Exception as e:
-        logging.error(f"Network/Server Error: {str(e)}")
-        return {'success': False, 'error': str(e)}
+            # Remove markdown code blocks if present
+            if json_content.startswith('```'):
+                lines = json_content.split('\n')
+                # Remove first line (```json or ```)
+                if len(lines) > 1:
+                    lines = lines[1:]
+                # Remove last line (```)
+                if len(lines) > 0 and lines[-1].strip() == '```':
+                    lines = lines[:-1]
+                json_content = '\n'.join(lines)
+            
+            parsed_content = json.loads(json_content)
+            logger.info(f"[{datetime.now()}] Evaluation completed successfully")
+            return {'success': True, 'result': parsed_content}
+        except json.JSONDecodeError as e:
+            logger.error(f"[{datetime.now()}] JSON Parse Error: {str(e)}\nError position: {e.pos if hasattr(e, 'pos') else 'N/A'}\nContent: {content}")
+            return {'success': False, 'error': 'Failed to parse JSON response from LLM', 'raw_content': content}
+    elif response.status_code == 401:
+        # API key authentication error
+        error_msg = '올바르지 않은 API 키입니다. Anthropic API 키를 확인해주세요.'
+        logger.error(f"[{datetime.now()}] Anthropic API Authentication Error: {response.text}")
+        return {'success': False, 'error': error_msg, 'auth_error': True}
+    else:
+        # Parse error response to get meaningful error message
+        try:
+            error_data = response.json()
+            error_detail = error_data.get('error', {})
+            if isinstance(error_detail, dict):
+                error_type = error_detail.get('type', 'unknown_error')
+                error_message = error_detail.get('message', '알 수 없는 오류')
+                
+                # Handle specific error types
+                if error_type == 'not_found_error':
+                    if 'model' in error_message.lower():
+                        error_msg = f'모델을 찾을 수 없습니다: {error_message}. Anthropic API에서 사용 가능한 모델을 확인해주세요.'
+                    else:
+                        error_msg = f'리소스를 찾을 수 없습니다: {error_message}'
+                elif error_type == 'invalid_request_error':
+                    error_msg = f'잘못된 요청: {error_message}'
+                elif error_type == 'rate_limit_error':
+                    error_msg = f'API 요청 한도 초과: {error_message}. 잠시 후 다시 시도해주세요.'
+                else:
+                    error_msg = f'Anthropic API 오류 ({error_type}): {error_message}'
+            else:
+                error_msg = f'Anthropic API 오류: {str(error_detail)}'
+        except:
+            error_text = response.text
+            error_msg = f'Anthropic API 오류: {error_text}'
+        
+        logger.error(f"[{datetime.now()}] Anthropic API Error: {response.text}")
+        return {'success': False, 'error': error_msg}

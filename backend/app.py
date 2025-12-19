@@ -286,7 +286,8 @@ def evaluate_conversation():
         "topic": "...",
         "persona1": "...",
         "persona2": "...",
-        "dialogue_log": [ { "speaker": "...", "text": "..." }, ... ]
+        "dialogue_log": [ { "speaker": "...", "text": "..." }, ... ],
+        "provider": "openai" | "anthropic" (optional, default: "openai")
     }
     """
     try:
@@ -294,11 +295,16 @@ def evaluate_conversation():
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
 
+        provider = data.get('provider', 'openai').lower()
+        if provider not in ['openai', 'anthropic']:
+            return jsonify({'success': False, 'error': f'Unsupported provider: {provider}. Supported: openai, anthropic'}), 400
+
         result = evaluate_conversation_log(
             topic=data.get('topic', ''),
             persona1=data.get('persona1', ''),
             persona2=data.get('persona2', ''),
-            dialogue_log=data.get('dialogue_log', [])
+            dialogue_log=data.get('dialogue_log', []),
+            provider=provider
         )
 
         return jsonify(result), 200
