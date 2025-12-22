@@ -30,7 +30,6 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronUp,
-  User,
   Bot,
   AlertCircle,
 } from "lucide-react";
@@ -620,7 +619,7 @@ export function SimulationEvaluation() {
                                                                         }`}
                                                                     >
                                                                         {conv.speaker.includes('1') ? (
-                                                                            <User className="size-5 text-white" />
+                                                                            <Bot className="size-5 text-white" />
                                                                         ) : (
                                                                             <Bot className="size-5 text-white" />
                                                                         )}
