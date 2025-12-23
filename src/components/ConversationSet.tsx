@@ -11,6 +11,22 @@ interface Message {
     completion_tokens?: number;
     total_tokens?: number;
   };
+  buttons?: Array<{
+    type: string;
+    displayText: string;
+    postback?: string;
+    link?: {
+      web?: string;
+      mobile?: string;
+    };
+    intentId?: string;
+  }>;
+  chipList?: Array<{
+    type: string;
+    displayText: string;
+    postback?: string;
+    intentId?: string;
+  }>;
 }
 
 interface ConversationSetProps {
@@ -232,7 +248,49 @@ export function ConversationSet({
                   }`}
                   onClick={toggleTokens}
                 >
-                  <p className="text-xs leading-relaxed">{message.text}</p>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">{message.text}</p>
+                  
+                  {/* KT Chatbot 버튼 표시 */}
+                  {message.buttons && message.buttons.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-opacity-20 flex flex-wrap gap-1.5">
+                      {message.buttons.map((button, btnIndex) => (
+                        <button
+                          key={btnIndex}
+                          className={`text-xs px-3 py-1.5 rounded-lg transition-all font-medium shadow-sm hover:shadow-md ${
+                            message.bot === 1
+                              ? 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 hover:border-gray-400'
+                              : 'bg-white/25 hover:bg-white/35 text-white border border-white/40 hover:border-white/60'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (button.link?.web || button.link?.mobile) {
+                              window.open(button.link.web || button.link.mobile, '_blank');
+                            }
+                          }}
+                        >
+                          {button.displayText}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* KT Chatbot 칩 목록 (추천 질문) 표시 */}
+                  {message.chipList && message.chipList.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {message.chipList.map((chip, chipIndex) => (
+                        <span
+                          key={chipIndex}
+                          className={`text-xs px-2.5 py-1 rounded-full ${
+                            message.bot === 1
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-purple-200/30 text-purple-100 border border-purple-300/30'
+                          }`}
+                        >
+                          {chip.displayText}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {isExpanded && hasTokens && (
                   <div className={`mt-0.5 rounded-b-2xl px-3 py-1.5 text-xs leading-relaxed opacity-0 animate-fadeInSlideDown ${

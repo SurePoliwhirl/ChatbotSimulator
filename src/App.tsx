@@ -51,7 +51,7 @@ export default function App() {
                   `}
               >
                 <MessageSquare className={`w-4 h-4 ${currentView === 'simulatorV2' ? 'text-purple-600' : 'text-gray-600'}`} />
-                <span className={`${currentView === 'simulatorV2' ? 'text-purple-600' : 'text-gray-600'}`}>챗봇 시뮬레이터 V2</span>
+                <span className={`${currentView === 'simulatorV2' ? 'text-purple-600' : 'text-gray-600'}`}>챗봇 시뮬레이터 (Deprecated)</span>
               </button>
             </div>
           </div>

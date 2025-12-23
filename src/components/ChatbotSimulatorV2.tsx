@@ -18,6 +18,22 @@ interface Message {
     completion_tokens?: number;
     total_tokens?: number;
   };
+  buttons?: Array<{
+    type: string;
+    displayText: string;
+    postback?: string;
+    link?: {
+      web?: string;
+      mobile?: string;
+    };
+    intentId?: string;
+  }>;
+  chipList?: Array<{
+    type: string;
+    displayText: string;
+    postback?: string;
+    intentId?: string;
+  }>;
 }
 
 interface ConversationSetData {
@@ -77,6 +93,7 @@ export function ChatbotSimulatorV2() {
     per_set_tokens: number;
   } | null>(null);
   const [isEstimatingTokens, setIsEstimatingTokens] = useState(false);
+  const [ktChatbotSessionKey, setKtChatbotSessionKey] = useState<string | null>(null);
 
   const [defaultModels, setDefaultModels] = useState([
     { id: 'GPT-5.2', name: 'GPT-5.2', description: 'OpenAI의 최신 고성능 모델' },
@@ -301,57 +318,92 @@ export function ChatbotSimulatorV2() {
     previousMessages: Message[],
     customSystemPrompt?: string
   ): Promise<string> => {
-    // Agent(bot 1)는 템플릿 응답만 사용
+    // Bot 1: LLM 페르소나 사용
     if (botNumber === 1) {
-      return generateTemplateResponse(topic, 'Agent', previousMessages);
+      const modelId = config.llmModel;
+      const apiKey = getApiKeyForModel(modelId);
+      const temperature = config.temperature;
+      const topP = config.topP;
+      
+      if (!apiKey) {
+        return generateTemplateResponse(topic, persona, previousMessages);
+      }
+      
+      const modelType = getModelType(modelId, apiKey);
+      
+      try {
+        const response = await fetch('http://localhost:5000/api/generate-response', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            api_key: apiKey,
+            model_type: modelType,
+            topic: topic,
+            persona: persona,
+            previous_messages: previousMessages.map(msg => ({
+              bot: msg.bot,
+              text: msg.text,
+            })),
+            bot_number: 1,
+            temperature: temperature,
+            top_p: topP,
+            custom_system_prompt: customSystemPrompt,
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          return JSON.stringify({
+            text: data.text,
+            tokens: data.tokens
+          });
+        } else {
+          return `[오류: ${data.error || '응답 생성에 실패했습니다.'}]`;
+        }
+      } catch (error) {
+        return `[오류: ${error instanceof Error ? error.message : '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.'}]`;
+      }
     }
     
-    // 챗봇(bot 2)만 LLM API 사용
-    const modelId = config.llmModel;
-    const apiKey = getApiKeyForModel(modelId);
-    const temperature = config.temperature;
-    const topP = config.topP;
-    
-    if (!apiKey) {
-      return generateTemplateResponse(topic, persona, previousMessages);
-    }
-    
-    const modelType = getModelType(modelId, apiKey);
-    
+    // Bot 2: KT Chatbot API 사용
     try {
-      const response = await fetch('http://localhost:5000/api/generate-response', {
+      // 이전 메시지에서 Bot 1의 마지막 메시지를 찾아서 KT Chatbot에 전달
+      const lastBot1Message = [...previousMessages].reverse().find(msg => msg.bot === 1);
+      const messageToSend = lastBot1Message?.text || "안녕하세요";
+      
+      const response = await fetch('http://localhost:5000/api/kt-chatbot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          api_key: apiKey,
-          model_type: modelType,
-          topic: topic,
-          persona: persona,
-          previous_messages: previousMessages.map(msg => ({
-            bot: msg.bot,
-            text: msg.text,
-          })),
-          bot_number: 2,
-          temperature: temperature,
-          top_p: topP,
-          custom_system_prompt: customSystemPrompt,
+          message: messageToSend,
+          session_key: ktChatbotSessionKey,
         }),
       });
 
       const data = await response.json();
       
       if (data.success) {
+        // 세션 키 업데이트
+        if (data.session_key) {
+          setKtChatbotSessionKey(data.session_key);
+        }
+        
         return JSON.stringify({
-          text: data.text,
-          tokens: data.tokens
+          text: data.text || "응답이 없습니다.",
+          tokens: undefined,  // KT Chatbot은 토큰 정보가 없음
+          buttons: data.buttons || [],
+          chipList: data.chip_list || []
         });
       } else {
-        return `[오류: ${data.error || '응답 생성에 실패했습니다.'}]`;
+        return `[오류: ${data.error || 'KT 챗봇 응답 생성에 실패했습니다.'}]`;
       }
     } catch (error) {
-      return `[오류: ${error instanceof Error ? error.message : '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.'}]`;
+      return `[오류: ${error instanceof Error ? error.message : 'KT 챗봇 서버에 연결할 수 없습니다.'}]`;
     }
   };
 
@@ -528,12 +580,16 @@ export function ChatbotSimulatorV2() {
           
           let text: string;
           let tokens: Message['tokens'] | undefined;
+          let buttons: Message['buttons'] | undefined;
+          let chipList: Message['chipList'] | undefined;
           
           try {
             const parsed = JSON.parse(response);
             if (parsed.text) {
               text = parsed.text;
               tokens = parsed.tokens;
+              buttons = parsed.buttons;
+              chipList = parsed.chipList;
             } else {
               text = response;
             }
@@ -547,6 +603,8 @@ export function ChatbotSimulatorV2() {
             text,
             timestamp: new Date(),
             tokens,
+            buttons,
+            chipList,
           };
           
           localMessages = [...localMessages, newMessage];
@@ -597,6 +655,7 @@ export function ChatbotSimulatorV2() {
   const clearConversation = () => {
     setConversationSets([]);
     setInitialNumberOfSets(null);
+    setKtChatbotSessionKey(null);  // KT Chatbot 세션 키 초기화
   };
 
   const exportConversations = () => {
@@ -640,7 +699,7 @@ export function ChatbotSimulatorV2() {
     conversationSets.forEach((set, setIndex) => {
       content += `[세트 ${setIndex + 1}]\n\n`;
       set.messages.forEach((msg) => {
-        const speaker = msg.bot === 2 ? '챗봇' : 'Agent';
+        const speaker = msg.bot === 1 ? (config.persona || 'LLM 페르소나') : 'KT Chatbot';
         content += `${speaker}: ${msg.text}\n\n`;
       });
       
@@ -683,7 +742,7 @@ export function ChatbotSimulatorV2() {
           setNumber: index + 1,
           messages: set.messages.map((msg) => ({
             bot: msg.bot,
-            speaker: msg.bot === 2 ? '챗봇' : 'Agent',
+            speaker: msg.bot === 1 ? config.persona || 'LLM 페르소나' : 'KT Chatbot',
             text: msg.text,
             timestamp: msg.timestamp.toISOString(),
             tokens: msg.tokens,
@@ -718,7 +777,7 @@ export function ChatbotSimulatorV2() {
 
     conversationSets.forEach((set, setIndex) => {
       set.messages.forEach((msg) => {
-        const speaker = msg.bot === 2 ? '챗봇' : 'Agent';
+        const speaker = msg.bot === 1 ? (config.persona || 'LLM 페르소나') : 'KT Chatbot';
         const time = msg.timestamp.toLocaleTimeString('ko-KR');
         const promptTokens = msg.tokens?.prompt_tokens || '';
         const completionTokens = msg.tokens?.completion_tokens || '';
@@ -766,7 +825,7 @@ export function ChatbotSimulatorV2() {
       <header className="text-center mb-8">
         <div className="flex items-center justify-center gap-3 mb-3">
           <img src={botLogo} alt="Chatbot Logo" className="w-10 h-10" />
-          <h1 className="text-purple-900">챗봇 시뮬레이터 V2</h1>
+          <h1 className="text-purple-900">챗봇 시뮬레이터 (Deprecated)</h1>
         </div>
         <p className="text-gray-600">
           챗봇과 Agent 간의 대화를 시뮬레이션합니다

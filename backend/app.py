@@ -10,6 +10,7 @@ from generate_llm_response import generate_llm_response, generate_conversation_p
 from config import LLMRequestConfig, LLMResponse
 from estimate_tokens import estimate_simulation_tokens
 from evaluate_conversation import evaluate_conversation_log
+from kt_chatbot_client import KTChatbotClient
 
 app = Flask(__name__)
 CORS(app)  # React 앱에서의 요청을 허용
@@ -311,6 +312,70 @@ def evaluate_conversation():
 
     except Exception as e:
         return jsonify({'success': False, 'error': f'Server Error: {str(e)}'}), 500
+
+@app.route('/api/kt-chatbot', methods=['POST'])
+def kt_chatbot():
+    """
+    KT 챗봇 API 엔드포인트
+    Request body: {
+        "message": "사용자 메시지",
+        "session_key": "세션 키 (선택사항)"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': '요청 데이터가 없습니다.'
+            }), 400
+        
+        message = data.get('message')
+        session_key = data.get('session_key')
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': '메시지가 제공되지 않았습니다.'
+            }), 400
+        
+        # KT 챗봇 클라이언트 생성 (세션 키 전달)
+        client = KTChatbotClient()
+        if session_key:
+            client.session_key = session_key
+        
+        # 메시지 전송
+        response = client.send_message(message)
+        
+        if response.get("code") == "0000":
+            # 메시지 텍스트 추출
+            message_text = client.extract_message_text(response)
+            # 버튼 추출
+            buttons = client.extract_buttons(response)
+            # 칩 목록 추출
+            chip_list = client.extract_chip_list(response)
+            
+            return jsonify({
+                'success': True,
+                'text': message_text,
+                'buttons': buttons,
+                'chip_list': chip_list,
+                'session_key': client.session_key,
+                'full_response': response  # 전체 응답도 포함 (디버깅용)
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': response.get('message', 'KT 챗봇 응답 오류'),
+                'session_key': client.session_key
+            }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'서버 오류: {str(e)}'
+        }), 500
 
 @app.route('/health', methods=['GET'])
 def health():
