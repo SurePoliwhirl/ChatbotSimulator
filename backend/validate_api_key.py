@@ -69,7 +69,7 @@ def validate_anthropic_key(api_key: str) -> Dict[str, any]:
         
         # 간단한 테스트 메시지 (최소 토큰 사용)
         data = {
-            'model': 'claude-3-haiku-20240307',  # 가장 저렴한 모델
+            'model': 'claude-3-5-haiku-20241022',  # 가장 저렴한 최신 모델
             'max_tokens': 1,
             'messages': [
                 {'role': 'user', 'content': 'test'}
@@ -94,7 +94,21 @@ def validate_anthropic_key(api_key: str) -> Dict[str, any]:
                 'error': 'API 키가 유효하지 않거나 권한이 없습니다.'
             }
         else:
-            error_msg = response.json().get('error', {}).get('message', '알 수 없는 오류')
+            # 에러 응답 파싱 시도
+            try:
+                error_data = response.json()
+                if isinstance(error_data, dict):
+                    error_detail = error_data.get('error', {})
+                    if isinstance(error_detail, dict):
+                        error_msg = error_detail.get('message', '알 수 없는 오류')
+                    else:
+                        error_msg = str(error_detail)
+                else:
+                    error_msg = '알 수 없는 오류'
+            except:
+                # JSON 파싱 실패 시 응답 텍스트 사용
+                error_msg = response.text[:200] if response.text else f'HTTP {response.status_code} 오류'
+            
             return {
                 'valid': False,
                 'error': f'API 요청 실패: {error_msg}'
@@ -181,19 +195,24 @@ def validate_api_key(api_key: str, model_type: str = 'openai') -> Dict[str, any]
     
     model_type = model_type.lower()
     
-    if model_type == 'openai' or api_key.startswith('sk-'):
-        return validate_openai_key(api_key)
-    elif model_type == 'anthropic' or 'anthropic' in api_key.lower():
+    # 명시적으로 지정된 모델 타입을 최우선으로 사용
+    if model_type == 'anthropic':
         return validate_anthropic_key(api_key)
-    elif model_type == 'google' or 'google' in model_type.lower():
+    elif model_type == 'google':
         return validate_google_key(api_key)
+    elif model_type == 'openai':
+        return validate_openai_key(api_key)
     else:
-        # 기본적으로 OpenAI 형식으로 시도
-        if api_key.startswith('sk-'):
+        # model_type이 명시되지 않았거나 알 수 없는 경우, API 키 형식으로 자동 감지
+        if api_key.startswith('sk-ant-') or api_key.startswith('sk-ant-api'):
+            return validate_anthropic_key(api_key)
+        elif api_key.startswith('AIza'):
+            return validate_google_key(api_key)
+        elif api_key.startswith('sk-'):
             return validate_openai_key(api_key)
         else:
             return {
                 'valid': False,
-                'error': f'지원하지 않는 모델 타입입니다: {model_type}'
+                'error': f'지원하지 않는 모델 타입입니다: {model_type}. API 키 형식을 확인해주세요.'
             }
 

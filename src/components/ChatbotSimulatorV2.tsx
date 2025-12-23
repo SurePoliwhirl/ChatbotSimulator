@@ -70,6 +70,42 @@ export function ChatbotSimulatorV2() {
   const [newModelApiKey, setNewModelApiKey] = useState('');
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // localStorage에서 커스텀 모델 로드
+  useEffect(() => {
+    const loadModels = () => {
+      try {
+        const savedModels = localStorage.getItem('customModels');
+        if (savedModels) {
+          const parsed = JSON.parse(savedModels);
+          setCustomModels(parsed);
+        }
+      } catch (error) {
+        console.error('모델 로드 실패:', error);
+      }
+    };
+    
+    loadModels();
+    
+    // storage 이벤트 리스너 추가 (다른 탭/창에서 변경 감지)
+    window.addEventListener('storage', loadModels);
+    // 커스텀 이벤트 리스너 추가 (같은 페이지 내 동기화)
+    window.addEventListener('customModelsUpdated', loadModels);
+    
+    return () => {
+      window.removeEventListener('storage', loadModels);
+      window.removeEventListener('customModelsUpdated', loadModels);
+    };
+  }, []);
+
+  // 커스텀 모델이 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    try {
+      localStorage.setItem('customModels', JSON.stringify(customModels));
+    } catch (error) {
+      console.error('모델 저장 실패:', error);
+    }
+  }, [customModels]);
   const [tokenEstimate, setTokenEstimate] = useState<{
     total_tokens: number;
     total_prompt_tokens: number;
@@ -117,7 +153,9 @@ export function ChatbotSimulatorV2() {
       if (data.valid) {
         return { valid: true };
       } else {
-        return { valid: false, error: data.error || 'API 키 검증에 실패했습니다.' };
+        // 더 자세한 에러 메시지 반환
+        const errorMessage = data.error || data.message || 'API 키 검증에 실패했습니다.';
+        return { valid: false, error: errorMessage };
       }
     } catch (error) {
       return { 
@@ -137,10 +175,13 @@ export function ChatbotSimulatorV2() {
     setIsValidatingKey(true);
 
     try {
+      // API 키 형식에 따라 모델 타입 자동 감지
       let modelType = 'openai';
-      if (newModelApiKey.includes('anthropic') || newModelApiKey.startsWith('sk-ant-')) {
+      if (newModelApiKey.startsWith('sk-ant-') || newModelApiKey.startsWith('sk-ant-api')) {
         modelType = 'anthropic';
-      } else if (newModelApiKey.includes('google') || newModelApiKey.length > 50) {
+      } else if (newModelApiKey.startsWith('sk-') && !newModelApiKey.startsWith('sk-ant')) {
+        modelType = 'openai';
+      } else if (newModelApiKey.startsWith('AIza') || newModelApiKey.length > 50) {
         modelType = 'google';
       }
 
@@ -159,10 +200,23 @@ export function ChatbotSimulatorV2() {
         description: '사용자 정의 모델',
       };
 
-      setCustomModels([newModel, ...customModels]);
+      const updatedModels = [newModel, ...customModels];
+      
+      // 즉시 localStorage에 저장
+      try {
+        localStorage.setItem('customModels', JSON.stringify(updatedModels));
+      } catch (error) {
+        console.error('모델 저장 실패:', error);
+      }
+      
+      // 상태 업데이트
+      setCustomModels(updatedModels);
       setNewModelName('');
       setNewModelApiKey('');
       setValidationError(null);
+      
+      // 다른 컴포넌트에 변경 사항 알림 (같은 페이지 내 동기화)
+      window.dispatchEvent(new Event('customModelsUpdated'));
       
       toast.success('모델이 성공적으로 추가되었습니다!', {
         description: `${newModel.name} 모델이 목록에 추가되었습니다.`,
@@ -170,9 +224,10 @@ export function ChatbotSimulatorV2() {
       });
       
       setAddModelDialogOpen(false);
-      if (modelDialogOpen) {
+      // 모델 선택 다이얼로그 열기 (추가된 모델 확인 가능)
+      setTimeout(() => {
         setModelDialogOpen(true);
-      }
+      }, 100);
     } catch (error) {
       setValidationError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
@@ -189,7 +244,18 @@ export function ChatbotSimulatorV2() {
     if (isDefaultModel) {
       setDefaultModels(defaultModels.filter(m => m.id !== modelId));
     } else {
-      setCustomModels(customModels.filter(m => m.id !== modelId));
+      const updatedModels = customModels.filter(m => m.id !== modelId);
+      
+      // 즉시 localStorage에 저장
+      try {
+        localStorage.setItem('customModels', JSON.stringify(updatedModels));
+      } catch (error) {
+        console.error('모델 저장 실패:', error);
+      }
+      
+      setCustomModels(updatedModels);
+      // 다른 컴포넌트에 변경 사항 알림
+      window.dispatchEvent(new Event('customModelsUpdated'));
     }
     
     if (config.llmModel === modelId) {
@@ -1224,13 +1290,17 @@ export function ChatbotSimulatorV2() {
                 type="password"
                 value={newModelApiKey}
                 onChange={(e) => {
-                  setNewModelApiKey(e.target.value);
+                  const apiKey = e.target.value;
+                  setNewModelApiKey(apiKey);
                   setValidationError(null);
                 }}
-                placeholder="sk-..."
+                placeholder="sk-... 또는 sk-ant-... 또는 AIza..."
                 className="w-full"
                 disabled={isValidatingKey}
               />
+              <p className="text-xs text-gray-500">
+                API 키 형식에 따라 자동으로 모델 타입이 감지됩니다 (OpenAI, Anthropic, Google)
+              </p>
             </div>
             {validationError && (
               <div className="p-3 bg-red-50 rounded-lg">
