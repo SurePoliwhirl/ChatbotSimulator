@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ChatbotSimulator } from './components/ChatbotSimulator';
+import { ChatbotSimulatorV2 } from './components/ChatbotSimulatorV2';
 import { SimulationEvaluation } from './components/SimulationEvaluation';
 import { MessageSquare, BarChart2 } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'simulator' | 'evaluation'>('simulator');
+  const [currentView, setCurrentView] = useState<'simulator' | 'evaluation' | 'simulatorV2'>('simulator');
 
   return (
     <div className="min-h-screen bg-purple-50 flex flex-col">
@@ -39,6 +40,19 @@ export default function App() {
                 <BarChart2 className={`w-4 h-4 ${currentView === 'evaluation' ? 'text-purple-600' : 'text-gray-600'}`} />
                 <span className={`${currentView === 'evaluation' ? 'text-purple-600' : 'text-gray-600'}`}>평가 대시보드</span>
               </button>
+
+              <button
+                onClick={() => setCurrentView('simulatorV2')}
+                className={`
+                    flex items-center gap-2.5 px-6 py-3 rounded-md text-sm font-medium transition-all duration-200 mt-2
+                    ${currentView === 'simulatorV2'
+                    ? 'bg-purple-50 border-2 border-purple-600'
+                    : 'bg-white/70 hover:bg-white/90 border border-gray-200/60'}
+                  `}
+              >
+                <MessageSquare className={`w-4 h-4 ${currentView === 'simulatorV2' ? 'text-purple-600' : 'text-gray-600'}`} />
+                <span className={`${currentView === 'simulatorV2' ? 'text-purple-600' : 'text-gray-600'}`}>챗봇 시뮬레이터 V2</span>
+              </button>
             </div>
           </div>
         </div>
@@ -50,6 +64,9 @@ export default function App() {
         </div>
         <div style={{ display: currentView === 'evaluation' ? 'block' : 'none' }}>
           <SimulationEvaluation />
+        </div>
+        <div style={{ display: currentView === 'simulatorV2' ? 'block' : 'none' }}>
+          <ChatbotSimulatorV2 />
         </div>
       </main>
       <Toaster />
