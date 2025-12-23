@@ -46,10 +46,10 @@ def clean_response_text(text: str) -> str:
 def generate_conversation_prompt(api_key: str, topic: str, persona1: str, persona2: str) -> str:
     """
     LLM을 사용하여 주제와 페르소나에 맞는 대화 프롬프트를 동적으로 생성
-    GPT-4o 사용
+    API 키 형식에 따라 OpenAI 또는 Anthropic 사용
     
     Args:
-        api_key: OpenAI API 키
+        api_key: API 키 (OpenAI 또는 Anthropic)
         topic: 대화 주제
         persona1: 챗봇 1의 페르소나
         persona2: 챗봇 2의 페르소나
@@ -57,18 +57,167 @@ def generate_conversation_prompt(api_key: str, topic: str, persona1: str, person
     Returns:
         생성된 프롬프트 문자열 (실패 시 None)
     """
-    # GPT-4o 사용
-    model_name = 'gpt-4o'
-    try:
-        result = _try_generate_prompt_with_model(api_key, topic, persona1, persona2, model_name)
-        if result:
-            print(f"프롬프트: {result}")
-            return result
-        else:
-            print(f"모델 {model_name}로 프롬프트 생성 실패")
+    # API 키 형식에 따라 모델 타입 결정
+    if api_key.startswith('sk-ant-') or api_key.startswith('sk-ant-api'):
+        # Anthropic API 사용
+        try:
+            result = _try_generate_prompt_with_anthropic(api_key, topic, persona1, persona2)
+            if result:
+                print(f"프롬프트: {result}")
+                return result
+            else:
+                print(f"Anthropic API로 프롬프트 생성 실패")
+                return None
+        except Exception as e:
+            print(f"Anthropic API로 프롬프트 생성 중 오류: {str(e)}")
             return None
+    else:
+        # OpenAI API 사용 (기본값)
+        model_name = 'gpt-4o'
+        try:
+            result = _try_generate_prompt_with_model(api_key, topic, persona1, persona2, model_name)
+            if result:
+                print(f"프롬프트: {result}")
+                return result
+            else:
+                print(f"모델 {model_name}로 프롬프트 생성 실패")
+                return None
+        except Exception as e:
+            print(f"모델 {model_name}로 프롬프트 생성 중 오류: {str(e)}")
+            return None
+
+def _try_generate_prompt_with_anthropic(api_key: str, topic: str, persona1: str, persona2: str) -> Optional[str]:
+    """
+    Anthropic Claude 모델을 사용하여 주제와 페르소나에 맞는 대화 프롬프트 생성
+    
+    Args:
+        api_key: Anthropic API 키
+        topic: 대화 주제
+        persona1: 챗봇 1의 페르소나
+        persona2: 챗봇 2의 페르소나
+    
+    Returns:
+        생성된 프롬프트 문자열 (실패 시 None)
+    """
+    try:
+        headers = {
+            'x-api-key': api_key,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+        }
+        
+        system_message = '당신은 대화 시뮬레이션을 위한 시스템 프롬프트를 생성하는 전문가입니다. 주어진 주제와 두 페르소나에 맞는 역할과 행동 지침을 담은 프롬프트를 생성하세요.'
+        
+        user_content = f"""다음 정보를 바탕으로 대화 시뮬레이션을 위한 시스템 프롬프트를 생성해주세요:
+
+주제: {topic}
+페르소나 1 (챗봇 1): {persona1}
+페르소나 2 (챗봇 2): {persona2}
+
+[중요] 프롬프트 작성 요구사항:
+1. 각 페르소나의 역할과 책임을 명확히 설명하세요
+   - 페르소나 1이 어떤 역할을 하는지 (예: 정보 제공자, 정보 요청자, 의견 제시자 등)
+   - 페르소나 2가 어떤 역할을 하는지
+   - 각 페르소나가 대화에서 어떤 행동을 해야 하는지
+
+2. 각 페르소나의 특성과 성격을 반영하세요
+   - 페르소나 설명에 명시된 특성들을 대화에 어떻게 반영할지
+   - 말투, 태도, 관점 등
+
+3. 주제에 대한 대화 목적과 방향을 제시하세요
+   - 이 대화의 목적이 무엇인지
+   - 대화가 어떻게 진행되어야 하는지
+
+4. 절대 실제 대화 예시나 대화 내용을 포함하지 마세요
+   - "고객: 안녕하세요..." 같은 실제 대화 예시는 포함하지 마세요
+   - 역할 지침과 행동 규칙만 작성하세요
+
+5. 한국어로 작성하세요
+
+6. 프롬프트만 반환하세요 (추가 설명이나 메타 설명 없이)
+
+생성된 프롬프트:"""
+        
+        data = {
+            'model': 'claude-sonnet-4-5',  # evaluate_conversation.py와 동일한 모델 사용
+            'max_tokens': 2000,
+            'system': system_message,
+            'messages': [
+                {'role': 'user', 'content': user_content}
+            ],
+            'temperature': 0.7
+        }
+        
+        response = requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers=headers,
+            json=data,
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            content_blocks = result.get('content', [])
+            
+            if content_blocks and len(content_blocks) > 0:
+                first_block = content_blocks[0]
+                if isinstance(first_block, dict):
+                    content = first_block.get('text', '').strip()
+                else:
+                    content = str(first_block).strip()
+            else:
+                content = ''
+            
+            print(f"\n{'='*80}")
+            print(f"[프롬프트 생성 성공] Anthropic Claude")
+            print(f"{'='*80}")
+            print(f"생성된 프롬프트:\n{content}")
+            print(f"{'='*80}\n")
+            return content
+        else:
+            # 에러 발생
+            error_msg = ""
+            error_details = ""
+            try:
+                error_data = response.json()
+                error_detail = error_data.get('error', {})
+                if isinstance(error_detail, dict):
+                    error_msg = error_detail.get('message', '알 수 없는 오류')
+                    error_type = error_detail.get('type', '알 수 없음')
+                    error_details = f"타입: {error_type}"
+                else:
+                    error_msg = str(error_detail)
+            except Exception as parse_error:
+                error_msg = f'응답 파싱 실패: {str(parse_error)}'
+                error_details = f"상태 코드: {response.status_code}, 응답 본문: {response.text[:200]}"
+            
+            print(f"\n{'='*80}")
+            print(f"[프롬프트 생성 실패] Anthropic Claude")
+            print(f"{'='*80}")
+            print(f"실패 이유: {error_msg}")
+            if error_details:
+                print(f"상세 정보: {error_details}")
+            print(f"상태 코드: {response.status_code}")
+            print(f"{'='*80}\n")
+            return None
+            
+    except requests.exceptions.Timeout:
+        print(f"\n{'='*80}")
+        print(f"[프롬프트 생성 실패] Anthropic Claude")
+        print(f"{'='*80}")
+        print(f"실패 이유: 요청 시간 초과 (60초)")
+        print(f"원인: API 서버가 응답하는데 너무 오래 걸렸거나 네트워크 문제가 발생했습니다.")
+        print(f"{'='*80}\n")
+        return None
     except Exception as e:
-        print(f"모델 {model_name}로 프롬프트 생성 중 오류: {str(e)}")
+        print(f"\n{'='*80}")
+        print(f"[프롬프트 생성 실패] Anthropic Claude")
+        print(f"{'='*80}")
+        print(f"실패 이유: 예외 발생")
+        print(f"예외 타입: {type(e).__name__}")
+        print(f"예외 메시지: {str(e)}")
+        print(f"원인: API 호출 중 예상치 못한 오류가 발생했습니다.")
+        print(f"{'='*80}\n")
         return None
 
 def _try_generate_prompt_with_model(api_key: str, topic: str, persona1: str, persona2: str, model_name: str) -> Optional[str]:
@@ -268,15 +417,33 @@ def generate_openai_response(config: LLMRequestConfig, custom_system_prompt: Opt
         # 대화 히스토리 구성
         messages = []
         
-        # 커스텀 프롬프트 필수 체크
-        if not custom_system_prompt:
-            return LLMResponse(success=False, error='커스텀 프롬프트가 제공되지 않았습니다.')
-        
-        # 시스템 프롬프트 (커스텀 프롬프트 사용)
+        # 커스텀 프롬프트가 없으면 기본 프롬프트 생성
         other_bot_number = 3 - config.bot_number
-        
-        # 커스텀 프롬프트에서 {persona} 변수를 실제 페르소나로 치환
-        system_prompt = custom_system_prompt.replace('{persona}', config.persona)
+        if not custom_system_prompt:
+            # 기본 프롬프트 생성
+            system_prompt = f"""당신은 챗봇 {config.bot_number}입니다. {config.persona}의 역할을 맡고 있습니다.
+
+현재 상황:
+- 주제: {config.topic}
+- 당신은 챗봇 {config.bot_number} ({config.persona})
+- 상대방은 챗봇 {other_bot_number}
+- 두 챗봇이 {config.topic}에 대해 대화를 나누고 있습니다.
+
+당신의 역할 (매우 중요):
+- 이것은 단순한 독백이 아닌 **실제 대화**입니다.
+- 상대방(챗봇 {other_bot_number})의 발언에 **반드시 직접적으로 반응**해야 합니다.
+- 상대방의 말에 대해 질문하거나, 공감하거나, 동의하거나, 반대 의견을 제시하거나, 상대방의 말을 인용해야 합니다.
+- 절대로 주제에 대해 독립적으로 말만 하면 안 됩니다. 상대방과의 상호작용이 필수입니다.
+- "{config.persona}"의 관점을 유지하면서도 상대방과 소통해야 합니다.
+
+절대적으로 지켜야 할 규칙:
+1. 반드시 한국어로만 응답하세요.
+2. 반드시 완전한 문장으로 끝나야 합니다.
+3. 한 번에 1-2문장으로만 응답하세요.
+4. **상대방의 발언에 직접적으로 반응하세요.**"""
+        else:
+            # 커스텀 프롬프트에서 {persona} 변수를 실제 페르소나로 치환
+            system_prompt = custom_system_prompt.replace('{persona}', config.persona)
         
         # 상대방 페르소나 정보 (other_persona가 있으면 사용)
         other_persona_text = f" ({other_persona})" if other_persona else ""
@@ -461,6 +628,130 @@ def generate_openai_response(config: LLMRequestConfig, custom_system_prompt: Opt
     except Exception as e:
         return LLMResponse(success=False, error=f'오류 발생: {str(e)}')
 
+def generate_anthropic_response(config: LLMRequestConfig, custom_system_prompt: Optional[str] = None, other_persona: Optional[str] = None) -> LLMResponse:
+    """
+    Anthropic API를 사용하여 응답 생성
+    """
+    try:
+        headers = {
+            'x-api-key': config.api_key,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+        }
+        
+        # 기본 프롬프트 생성 (custom_system_prompt가 없으면)
+        other_bot_number = 3 - config.bot_number
+        if not custom_system_prompt:
+            system_prompt = f"""당신은 챗봇 {config.bot_number}입니다. {config.persona}의 역할을 맡고 있습니다.
+
+현재 상황:
+- 주제: {config.topic}
+- 당신은 챗봇 {config.bot_number} ({config.persona})
+- 상대방은 챗봇 {other_bot_number}
+- 두 챗봇이 {config.topic}에 대해 대화를 나누고 있습니다.
+
+당신의 역할 (매우 중요):
+- 이것은 단순한 독백이 아닌 **실제 대화**입니다.
+- 상대방(챗봇 {other_bot_number})의 발언에 **반드시 직접적으로 반응**해야 합니다.
+- 상대방의 말에 대해 질문하거나, 공감하거나, 동의하거나, 반대 의견을 제시하거나, 상대방의 말을 인용해야 합니다.
+- 절대로 주제에 대해 독립적으로 말만 하면 안 됩니다. 상대방과의 상호작용이 필수입니다.
+- "{config.persona}"의 관점을 유지하면서도 상대방과 소통해야 합니다.
+
+절대적으로 지켜야 할 규칙:
+1. 반드시 한국어로만 응답하세요.
+2. 반드시 완전한 문장으로 끝나야 합니다.
+3. 한 번에 1-2문장으로만 응답하세요.
+4. **상대방의 발언에 직접적으로 반응하세요.**"""
+        else:
+            system_prompt = custom_system_prompt.replace('{persona}', config.persona)
+        
+        # 메시지 구성
+        messages = []
+        if not config.previous_messages:
+            user_content = f"주제 '{config.topic}'에 대해 대화를 시작합니다. {config.persona}의 페르소나로 짧고 간결하게 첫 메시지를 작성하세요."
+        else:
+            # 대화 히스토리 구성
+            conversation_text = ""
+            for msg in config.previous_messages:
+                speaker = f"챗봇 {msg['bot']}"
+                if msg['bot'] == config.bot_number:
+                    speaker += f" (당신, {config.persona})"
+                else:
+                    speaker += f" (상대방)"
+                conversation_text += f"{speaker}: {msg['text']}\n"
+            
+            user_content = f"""다음은 지금까지의 대화입니다:
+
+{conversation_text}
+
+이제 당신(챗봇 {config.bot_number}, {config.persona})의 차례입니다. 상대방의 발언에 직접적으로 반응하면서 짧고 간결하게 응답하세요."""
+        
+        data = {
+            'model': 'claude-3-5-haiku-20241022',
+            'max_tokens': 150,
+            'system': system_prompt,
+            'messages': [
+                {'role': 'user', 'content': user_content}
+            ],
+            'temperature': config.temperature,
+            'top_p': config.top_p
+        }
+        
+        response = requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers=headers,
+            json=data,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            content_blocks = result.get('content', [])
+            
+            if content_blocks and len(content_blocks) > 0:
+                first_block = content_blocks[0]
+                if isinstance(first_block, dict):
+                    content = first_block.get('text', '')
+                else:
+                    content = str(first_block)
+            else:
+                content = ''
+            
+            # 응답 정리
+            content = clean_response_text(content)
+            content = ensure_complete_sentence(content)
+            
+            # 토큰 사용량
+            usage = result.get('usage', {})
+            prompt_tokens = usage.get('input_tokens', 0)
+            completion_tokens = usage.get('output_tokens', 0)
+            total_tokens = prompt_tokens + completion_tokens
+            
+            return LLMResponse(
+                success=True,
+                text=content,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens
+            )
+        else:
+            try:
+                error_data = response.json()
+                error_detail = error_data.get('error', {})
+                if isinstance(error_detail, dict):
+                    error_msg = error_detail.get('message', '알 수 없는 오류')
+                else:
+                    error_msg = str(error_detail)
+            except:
+                error_msg = f'상태 코드: {response.status_code}'
+            
+            return LLMResponse(success=False, error=f'Anthropic API 오류: {error_msg}')
+            
+    except requests.exceptions.Timeout:
+        return LLMResponse(success=False, error='요청 시간이 초과되었습니다.')
+    except Exception as e:
+        return LLMResponse(success=False, error=f'오류 발생: {str(e)}')
+
 def generate_llm_response(config: LLMRequestConfig, custom_system_prompt: Optional[str] = None, other_persona: Optional[str] = None) -> LLMResponse:
     """
     LLM API를 사용하여 응답 생성하는 메인 함수
@@ -476,15 +767,18 @@ def generate_llm_response(config: LLMRequestConfig, custom_system_prompt: Option
     
     model_type = config.model_type.lower()
     
-    if model_type == 'openai' or config.api_key.startswith('sk-'):
+    # 명시적으로 지정된 모델 타입 우선 사용
+    if model_type == 'anthropic' or config.api_key.startswith('sk-ant-') or config.api_key.startswith('sk-ant-api'):
+        return generate_anthropic_response(config, custom_system_prompt, other_persona)
+    elif model_type == 'openai' or (config.api_key.startswith('sk-') and not config.api_key.startswith('sk-ant')):
         return generate_openai_response(config, custom_system_prompt, other_persona)
-    # elif model_type == 'anthropic' or 'anthropic' in config.api_key.lower():
-    #     return generate_anthropic_response(config)
-    # elif model_type == 'google' or 'google' in model_type.lower():
-    #     return generate_google_response(config)
+    elif model_type == 'google' or config.api_key.startswith('AIza'):
+        return LLMResponse(success=False, error='Google API는 아직 지원되지 않습니다.')
     else:
-        # 기본적으로 OpenAI로 시도
-        if config.api_key.startswith('sk-'):
+        # 기본적으로 API 키 형식으로 자동 감지
+        if config.api_key.startswith('sk-ant-') or config.api_key.startswith('sk-ant-api'):
+            return generate_anthropic_response(config, custom_system_prompt, other_persona)
+        elif config.api_key.startswith('sk-'):
             return generate_openai_response(config, custom_system_prompt, other_persona)
         else:
             return LLMResponse(success=False, error=f'지원하지 않는 모델 타입입니다: {model_type}')
